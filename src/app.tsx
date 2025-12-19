@@ -12,6 +12,18 @@ export function App() {
   const [undoTaskId, setUndoTaskId] = useState<string | null>(null);
   const [undoPreviousTime, setUndoPreviousTime] = useState<number | null>(null);
   const [undoTimeout, setUndoTimeout] = useState<number | null>(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Update current time every minute
+  useEffect(() => {
+    const updateTime = () => {
+      setCurrentTime(new Date());
+    };
+    updateTime(); // Initial update
+    const timeInterval = setInterval(updateTime, 60000); // Every minute
+    
+    return () => clearInterval(timeInterval);
+  }, []);
 
   // Midnight auto-update: Check every 60 seconds if day has changed
   useEffect(() => {
@@ -22,6 +34,25 @@ export function App() {
 
     return () => clearInterval(interval);
   }, []);
+
+  // Format time as "HH:MM"
+  const formatTime = (date: Date): string => {
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+  };
+
+  // Format date as "Wednesday 4 Dec"
+  const formatCurrentDate = (date: Date): string => {
+    const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    
+    const weekday = weekdays[date.getDay()];
+    const month = months[date.getMonth()];
+    const day = date.getDate();
+    
+    return `${weekday} ${day} ${month}`;
+  };
 
   const handleAddTask = (e: Event) => {
     e.preventDefault();
@@ -117,6 +148,12 @@ export function App() {
   if (view === 'dashboard') {
     return (
       <div class="app">
+        <div class="time-bar">
+          <div class="time-bar-content">
+            <span class="time-display">{formatTime(currentTime)}</span>
+            <span class="date-display">{formatCurrentDate(currentTime)}</span>
+          </div>
+        </div>
         <button class="settings-button" onClick={() => setView('setup')} aria-label="Settings">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <line x1="12" y1="5" x2="12" y2="19"/>

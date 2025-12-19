@@ -6,6 +6,41 @@
   background-color: var(--bg-primary);
 }
 
+/* Time Bar */
+.time-bar {
+  width: 100%;
+  height: 25px;
+  background-color: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.time-bar-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 100%;
+  padding: 0 20px;
+  gap: 16px;
+}
+
+.time-display {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.date-display {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  margin-left: auto;
+}
+
 /* Settings Button (Floating) */
 .settings-button {
   position: fixed;
@@ -82,6 +117,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0; /* Allow flex shrinking */
 }
 
 .empty-state {
@@ -153,7 +189,7 @@
 }
 
 .task-name {
-  font-size: clamp(24px, 6vw, 48px);
+  font-size: clamp(36px, 6vw, 48px);
   font-weight: 400;
   color: var(--text-primary);
   margin: 0;
@@ -163,7 +199,7 @@
 
 .task-time {
   font-family: 'Courier New', Courier, monospace;
-  font-size: clamp(24px, 6vw, 48px);
+  font-size: clamp(32px, 6vw, 48px);
   font-weight: 600;
   color: var(--text-primary);
   background-color: rgba(255, 255, 255, 0.1);

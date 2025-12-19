@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'preact/hooks';
 import { tasks, addTask, deleteTask, completeTask, getDaysRemaining, checkDayChange, formatDaysRemaining, formatOverdueTime, moveTaskUp, moveTaskDown, formatDueDate } from './store';
+import { themes, type ThemeId, getStoredTheme, saveTheme, applyTheme } from './themes';
 import './app.css';
 
 type View = 'dashboard' | 'setup';
@@ -13,6 +14,12 @@ export function App() {
   const [undoPreviousTime, setUndoPreviousTime] = useState<number | null>(null);
   const [undoTimeout, setUndoTimeout] = useState<number | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [selectedTheme, setSelectedTheme] = useState<ThemeId>(getStoredTheme());
+
+  // Apply theme on mount and when theme changes
+  useEffect(() => {
+    applyTheme(selectedTheme);
+  }, [selectedTheme]);
 
   // Update current time every minute
   useEffect(() => {
@@ -326,6 +333,28 @@ export function App() {
               </div>
             ))
           )}
+        </div>
+        <div class="settings-section">
+          <h2>Theme</h2>
+          <div class="form-group">
+            <label for="theme-select">Color Theme</label>
+            <select
+              id="theme-select"
+              value={selectedTheme}
+              onChange={(e) => {
+                const newTheme = (e.target as HTMLSelectElement).value as ThemeId;
+                setSelectedTheme(newTheme);
+                saveTheme(newTheme);
+              }}
+              class="theme-select"
+            >
+              {Object.values(themes).map((theme) => (
+                <option key={theme.id} value={theme.id}>
+                  {theme.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </main>
     </div>

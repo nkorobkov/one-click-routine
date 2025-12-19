@@ -52,7 +52,8 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 
-input {
+input,
+select {
   font-family: inherit;
   font-size: inherit;
   color: inherit;
@@ -64,9 +65,14 @@ input {
   color: var(--text-primary);
 }
 
-input:focus {
+input:focus,
+select:focus {
   outline: 2px solid var(--accent-green);
   outline-offset: 2px;
+}
+
+.theme-select {
+  cursor: pointer;
 }
 
 label {

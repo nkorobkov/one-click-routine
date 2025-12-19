@@ -46,7 +46,7 @@
   position: fixed;
   bottom: 16px;
   right: 16px;
-  background-color: rgba(26, 26, 26, 0.5);
+  background-color: var(--settings-button-bg);
   color: var(--text-secondary);
   padding: 0;
   display: flex;
@@ -57,8 +57,8 @@
   width: 36px;
   height: 36px;
   z-index: 100;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--settings-button-border);
+  box-shadow: 0 1px 4px var(--settings-button-shadow);
 }
 
 .settings-button svg {
@@ -68,7 +68,7 @@
 }
 
 .settings-button:active {
-  background-color: rgba(26, 26, 26, 0.7);
+  background-color: var(--settings-button-bg-active);
   transform: scale(0.95);
 }
 
@@ -172,12 +172,11 @@
 }
 
 .task-card.overdue {
-  background-color: rgba(244, 67, 54, 0.15);
-  border-bottom-color: rgba(244, 67, 54, 0.3);
+  background-color: var(--overdue-bg);
 }
 
 .task-card.overdue:active {
-  background-color: rgba(244, 67, 54, 0.25);
+  background-color: var(--overdue-bg-active);
 }
 
 .task-content {
@@ -202,12 +201,12 @@
   font-size: clamp(32px, 6vw, 48px);
   font-weight: 600;
   color: var(--text-primary);
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: var(--task-time-bg);
   padding: 3px 8px;
   border-radius: 6px;
   display: inline-block;
   margin-left: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid var(--task-time-border);
   white-space: nowrap;
 }
 
@@ -221,7 +220,7 @@
 }
 
 .task-name-overdue {
-  font-size: clamp(24px, 6vw, 48px);
+  font-size: clamp(36px, 6vw, 48px);
   font-weight: 400;
   color: var(--text-primary);
   margin: 0;
@@ -240,7 +239,7 @@
   bottom: 7px;
   right: 7px;
   font-size: clamp(11px, 2vw, 14px);
-  color: rgba(176, 176, 176, 0.6);
+  color: var(--task-due-date-color);
   font-weight: 400;
 }
 
@@ -257,7 +256,7 @@
 }
 
 .button-primary:active {
-  background-color: #45a049;
+  background-color: var(--accent-green-dark);
   transform: scale(0.98);
 }
 
@@ -275,7 +274,7 @@
 }
 
 .button-danger:active {
-  background-color: rgba(211, 47, 47, 0.1);
+  background-color: var(--button-danger-active-bg);
 }
 
 .button-reorder {
@@ -309,6 +308,21 @@
   max-width: 600px;
   margin: 0 auto;
   width: 100%;
+}
+
+.settings-section {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 32px;
+}
+
+.settings-section h2 {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  color: var(--text-primary);
 }
 
 .task-form {
@@ -399,7 +413,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px var(--toast-shadow);
   position: relative;
   overflow: hidden;
 }
@@ -429,7 +443,7 @@
 }
 
 .undo-button:active {
-  background-color: #45a049;
+  background-color: var(--accent-green-dark);
   transform: scale(0.95);
 }
 
@@ -439,7 +453,7 @@
   left: 0;
   right: 0;
   height: 3px;
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: var(--progress-bar-bg);
   overflow: hidden;
 }
 
@@ -460,10 +474,6 @@
   }
 }
 
-.undo-button:active {
-  background-color: #45a049;
-  transform: scale(0.98);
-}
 
 /* Responsive adjustments for larger screens */
 @media (min-width: 768px) {

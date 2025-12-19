@@ -159,11 +159,6 @@ export function getDueDate(task: Task): Date {
   
   const daysRemaining = getDaysRemaining(task);
   
-  if (daysRemaining <= 0) {
-    // Already due, return today
-    return today;
-  }
-  
   // Calculate due date by adding days remaining
   const dueDate = new Date(today);
   dueDate.setDate(today.getDate() + daysRemaining);
@@ -189,6 +184,10 @@ export function formatOverdueTime(task: Task): string {
   const lastCompletedDate = timestampToDateString(task.lastCompleted);
   const daysOverdue = daysBetween(lastCompletedDate, today) - task.intervalDays;
   
+  if (daysOverdue === 0) {
+    return `today`;
+  }
+
   if (daysOverdue < 7) {
     return `${daysOverdue} day${daysOverdue !== 1 ? 's' : ''} ago`;
   }

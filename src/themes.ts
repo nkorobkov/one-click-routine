@@ -106,7 +106,7 @@ export function applyTheme(themeId: ThemeId) {
 
 export function getStoredTheme(): ThemeId {
   try {
-    const stored = localStorage.getItem('routine-tracker-theme');
+    const stored = localStorage.getItem('one-click-routine-theme');
     if (stored && stored in themes) {
       return stored as ThemeId;
     }
@@ -118,7 +118,7 @@ export function getStoredTheme(): ThemeId {
 
 export function saveTheme(themeId: ThemeId) {
   try {
-    localStorage.setItem('routine-tracker-theme', themeId);
+    localStorage.setItem('one-click-routine-theme', themeId);
   } catch (e) {
     console.error('Failed to save theme to localStorage:', e);
   }

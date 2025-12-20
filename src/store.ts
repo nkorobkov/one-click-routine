@@ -9,7 +9,7 @@ export interface Task {
   initialDaysOffset?: number; // Optional: days until first completion (defaults to intervalDays)
 }
 
-const STORAGE_KEY = 'routine-tracker-tasks';
+const STORAGE_KEY = 'one-click-routine-tasks';
 
 export const debug = (...args: string[]) => {
   if (import.meta.env.DEV) {

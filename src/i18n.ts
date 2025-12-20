@@ -213,7 +213,7 @@ export const months: Record<LanguageId, string[]> = {
 
 export function getStoredLanguage(): LanguageId {
   try {
-    const stored = localStorage.getItem('routine-tracker-language');
+    const stored = localStorage.getItem('one-click-routine-language');
     if (stored && stored in translations) {
       return stored as LanguageId;
     }
@@ -225,7 +225,7 @@ export function getStoredLanguage(): LanguageId {
 
 export function saveLanguage(languageId: LanguageId) {
   try {
-    localStorage.setItem('routine-tracker-language', languageId);
+    localStorage.setItem('one-click-routine-language', languageId);
   } catch (e) {
     console.error('Failed to save language to localStorage:', e);
   }

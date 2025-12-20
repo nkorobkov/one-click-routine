@@ -125,7 +125,7 @@ export function App() {
       
       // Save to localStorage (using the saveTasks function from store)
       try {
-        localStorage.setItem('routine-tracker-tasks', JSON.stringify(updated));
+        localStorage.setItem('one-click-routine-tasks', JSON.stringify(updated));
       } catch (e) {
         console.error('Failed to save tasks:', e);
       }

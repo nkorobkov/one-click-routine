@@ -46,6 +46,14 @@ export interface Translations {
   
   // Overdue formatting
   formatOverdueTime: (daysOverdue: number) => string;
+  
+  // Share tasks
+  shareTasks: string;
+  shareLinkDescription: string;
+  shareLinkHint: string;
+  copyLink: string;
+  linkCopied: string;
+  noTasksToShare: string;
 }
 
 export const translations: Record<LanguageId, Translations> = {
@@ -114,6 +122,12 @@ export const translations: Record<LanguageId, Translations> = {
       }
       return `${months}mo ${weeks}w ago`;
     },
+    shareTasks: 'Share Tasks',
+    shareLinkDescription: 'Copy this link to share your tasks',
+    shareLinkHint: 'Paste this link in another browser to import all tasks',
+    copyLink: 'Copy',
+    linkCopied: 'Copied!',
+    noTasksToShare: 'Add tasks to generate a share link',
   },
   ru: {
     timeFormat: (hours, minutes) => {
@@ -124,18 +138,18 @@ export const translations: Record<LanguageId, Translations> = {
     dateFormat: (weekday, day, month) => `${weekday} ${day} ${month}`,
     noTasksYet: 'Пока делать нечего',
     addYourFirstTask: 'Добавить рутину',
-    taskCompleted: 'Готово!',
+    taskCompleted: '✅',
     timeTo: 'пора',
     today: 'сегодня',
     inDays: (days) => `${days}`,
     formatDays: (days) => {
-      if (days === 1) return '1 день';
+      if (days === 1) return 'завтра';
       if (days < 5) return `${days} дня`;
       if (days < 7) return `${days} дней`;
       const weeks = Math.floor(days / 7);
       const remainingDays = days % 7;
       if (remainingDays === 0) {
-        const weekWord = weeks === 1 ? 'неделю' : weeks < 5 ? 'недели' : 'недель';
+        const weekWord = weeks%10 === 1 ? 'неделя' : weeks%10 < 5 ? 'недели' : 'недель';
         return `${weeks} ${weekWord}`;
       }
       return `${weeks}н ${remainingDays}д`;
@@ -148,7 +162,7 @@ export const translations: Record<LanguageId, Translations> = {
     daysUntilFirstCompletion: 'До первого выполнения',
     daysUntilFirstCompletionHint: 'Оставьте пустым, чтобы использовать частоту по умолчанию',
     addTask: 'Добавить',
-    yourTasks: 'Ваши задачи',
+    yourTasks: 'Ваши рутины',
     noTasksConfigured: 'Нет рутин',
     deleteTask: 'Удалить',
     deleteTaskConfirm: 'Удалить эту рутину?',
@@ -160,7 +174,7 @@ export const translations: Record<LanguageId, Translations> = {
     languageEnglish: 'Английский',
     languageRussian: 'Русский',
     everyDays: (days) => {
-      const dayWord = days === 1 ? 'день' : days < 5 ? 'дня' : 'дней';
+      const dayWord = days%10 === 1 ? 'день' : days%10 < 5 ? 'дня' : 'дней';
       return `Каждые ${days} ${dayWord}`;
     },
     formatOverdueTime: (daysOverdue) => {
@@ -173,12 +187,10 @@ export const translations: Record<LanguageId, Translations> = {
         const weeks = Math.floor(daysOverdue / 7);
         const days = daysOverdue % 7;
         if (days === 0) {
-          const weekWord = weeks === 1 ? 'неделю' : weeks < 5 ? 'недели' : 'недель';
+          const weekWord = weeks%10 === 1 ? 'неделю' : weeks%10 < 5 ? 'недели' : 'недель';
           return `${weeks} ${weekWord} назад`;
         }
-        const weekWord = weeks === 1 ? 'неделю' : weeks < 5 ? 'недели' : 'недель';
-        const dayWord = days === 1 ? 'день' : days < 5 ? 'дня' : 'дней';
-        return `${weeks} ${weekWord} ${days} ${dayWord} назад`;
+        return `${weeks}н ${days}д назад`;
       }
       const months = Math.floor(daysOverdue / 30);
       const remainingDays = daysOverdue % 30;
@@ -188,14 +200,16 @@ export const translations: Record<LanguageId, Translations> = {
       }
       const weeks = Math.floor(remainingDays / 7);
       if (weeks === 0) {
-        const monthWord = months === 1 ? 'месяц' : months < 5 ? 'месяца' : 'месяцев';
-        const dayWord = remainingDays === 1 ? 'день' : remainingDays < 5 ? 'дня' : 'дней';
-        return `${months} ${monthWord} ${remainingDays} ${dayWord} назад`;
+        return `${months}м ${remainingDays}д назад`;
       }
-      const monthWord = months === 1 ? 'месяц' : months < 5 ? 'месяца' : 'месяцев';
-      const weekWord = weeks === 1 ? 'неделю' : weeks < 5 ? 'недели' : 'недель';
-      return `${months} ${monthWord} ${weeks} ${weekWord} назад`;
+      return `${months}м ${weeks}н назад`;
     },
+    shareTasks: 'Поделиться рутинами',
+    shareLinkDescription: 'Скопируйте эту ссылку, чтобы поделиться своими рутинами',
+    shareLinkHint: 'Вставьте эту ссылку в другом браузере, чтобы импортировать все рутины',
+    copyLink: 'Копировать',
+    linkCopied: 'Скопировано!',
+    noTasksToShare: 'Добавьте рутины, чтобы создать ссылку для обмена',
   },
 };
 

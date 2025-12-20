@@ -391,6 +391,60 @@
   font-size: 16px;
 }
 
+/* Magic Link Sharing */
+.magic-link-container {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.magic-link-input {
+  flex: 1;
+  padding: 12px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.magic-link-input:focus {
+  outline: none;
+  border-color: var(--accent-green);
+}
+
+.button-copy {
+  background-color: var(--accent-green);
+  color: var(--text-primary);
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.button-copy:hover {
+  background-color: var(--button-hover);
+  transform: translateY(-1px);
+}
+
+.button-copy:active {
+  transform: translateY(0);
+}
+
+.button-copy.copied {
+  background-color: var(--accent-green);
+  opacity: 0.8;
+}
+
 /* Undo Toast */
 .undo-toast {
   position: fixed;
@@ -425,7 +479,7 @@
 }
 
 .undo-button {
-  background-color: var(--accent-green);
+  background-color: var(--accent-orange);
   color: var(--text-primary);
   padding: 0;
   border-radius: 8px;
@@ -434,8 +488,8 @@
   border: none;
   cursor: pointer;
   transition: all 0.2s;
-  width: 44px;
   height: 44px;
+  padding: 8px 16px;
   display: flex;
   align-items: center;
   justify-content: center;

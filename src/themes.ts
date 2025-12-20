@@ -11,6 +11,7 @@ export interface Theme {
     '--accent-green': string;
     '--accent-green-dark': string;
     '--accent-red': string;
+    '--accent-orange': string;
     '--border-color': string;
     '--button-bg': string;
     '--button-hover': string;
@@ -43,6 +44,7 @@ export const themes: Record<ThemeId, Theme> = {
       '--accent-green': '#4caf50',
       '--accent-green-dark': '#45a049',
       '--accent-red': '#f44336',
+      '--accent-orange': 'rgba(227, 182, 31, 0.7)',
       '--border-color': '#333333',
       '--button-bg': '#1a1a1a',
       '--button-hover': '#2a2a2a',
@@ -73,6 +75,7 @@ export const themes: Record<ThemeId, Theme> = {
       '--accent-green': '#859900', // Green
       '--accent-green-dark': '#738a05', // Darker green
       '--accent-red': '#dc322f', // Red
+      '--accent-orange': 'rgba(227, 182, 31, 0.7)',
       '--border-color': '#93a1a1', // Base1
       '--button-bg': '#eee8d5', // Base2
       '--button-hover': '#e6dfc7',

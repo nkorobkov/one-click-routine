@@ -17,24 +17,33 @@ export const debug = (...args: string[]) => {
   }
 };
 
+// Generate a shorter ID (base64url encoded random bytes)
+// This produces IDs like "aBc123Xy" instead of full UUIDs
+function generateShortId(): string {
+  // Generate 9 random bytes (72 bits) and encode as base64url
+  // This gives us 12 characters, which is much shorter than UUID (36 chars)
+  const bytes = new Uint8Array(9);
+  crypto.getRandomValues(bytes);
+  
+  // Convert to base64url (URL-safe base64)
+  // Convert Uint8Array to string using Array.from for compatibility
+  const byteString = String.fromCharCode(...Array.from(bytes));
+  let base64 = btoa(byteString)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, ''); // Remove padding
+  
+  return base64;
+}
+
+
 // Load tasks from localStorage on initialization
 function loadTasks(): Task[] {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const tasks = JSON.parse(stored);
-      // Migrate old tasks to include createdAt and initialDaysOffset
-      return tasks.map((task: Task) => {
-        if (!task.createdAt) {
-          // Old task - set createdAt to lastCompleted (or now if that's also missing)
-          task.createdAt = task.lastCompleted || Date.now();
-        }
-        if (task.initialDaysOffset === undefined) {
-          // Default to intervalDays
-          task.initialDaysOffset = task.intervalDays;
-        }
-        return task;
-      });
+      return tasks;
     }
   } catch (e) {
     console.error('Failed to load tasks from localStorage:', e);
@@ -130,29 +139,6 @@ export function getDaysRemaining(task: Task): number {
   }
 }
 
-// Helper: Format days as "X days" or "Xw Yd" format
-// This function returns just the number/format part, language-specific "in" prefix is handled in component
-export function formatDaysRemaining(days: number): string {
-  if (days <= 0) return '';
-  
-  if (days === 1) {
-    return '1 day';
-  }
-  
-  if (days < 7) {
-    return `${days} days`;
-  }
-  
-  const weeks = Math.floor(days / 7);
-  const remainingDays = days % 7;
-  
-  if (remainingDays === 0) {
-    return `${weeks}w`;
-  }
-  
-  return `${weeks}w ${remainingDays}d`;
-}
-
 // Helper: Get the due date for a task
 export function getDueDate(task: Task): Date {
   const today = new Date();
@@ -196,7 +182,7 @@ export function formatDueDate(task: Task): string {
 export function addTask(name: string, intervalDays: number, initialDaysOffset?: number) {
   const now = Date.now();
   const newTask: Task = {
-    id: crypto.randomUUID(),
+    id: generateShortId(),
     name,
     intervalDays,
     lastCompleted: now, // Set to creation time initially
@@ -252,6 +238,123 @@ export function checkDayChange() {
     currentDate.value = today;
     // Force signal update to recalculate days remaining
     tasks.value = [...tasks.value];
+  }
+}
+
+// Minimal task data for sharing (only what's needed to recreate the task)
+interface ShareableTask {
+  id: string;
+  name: string;
+  intervalDays: number;
+  lastCompleted: number;
+  createdAt: number;
+  initialDaysOffset?: number;
+}
+
+// Unicode-safe base64 encoding (handles emojis and all Unicode characters)
+function encodeUnicodeToBase64(str: string): string {
+  // Use TextEncoder to convert Unicode string to Uint8Array
+  const encoder = new TextEncoder();
+  const bytes = encoder.encode(str);
+  
+  // Convert bytes to base64
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  
+  // Convert to base64url (URL-safe)
+  return btoa(binary)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, ''); // Remove padding
+}
+
+// Unicode-safe base64 decoding (handles emojis and all Unicode characters)
+function decodeUnicodeFromBase64(base64: string): string {
+  // Restore base64url to standard base64
+  let standardBase64 = base64
+    .replace(/-/g, '+')
+    .replace(/_/g, '/');
+  
+  // Add padding if needed
+  while (standardBase64.length % 4) {
+    standardBase64 += '=';
+  }
+  
+  // Decode base64 to binary string
+  const binary = atob(standardBase64);
+  
+  // Convert binary string to Uint8Array
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  
+  // Use TextDecoder to convert bytes back to Unicode string
+  const decoder = new TextDecoder();
+  return decoder.decode(bytes);
+}
+
+// Generate magic link with base64 encoded task data
+export function generateMagicLink(): string {
+  if (tasks.value.length === 0) {
+    return '';
+  }
+  
+  const shareableTasks: ShareableTask[] = tasks.value.map(task => ({
+    id: task.id,
+    name: task.name,
+    intervalDays: task.intervalDays,
+    lastCompleted: task.lastCompleted,
+    createdAt: task.createdAt,
+    initialDaysOffset: task.initialDaysOffset,
+  }));
+  
+  const json = JSON.stringify(shareableTasks);
+  // Encode to base64url (URL-safe) with Unicode support
+  const base64 = encodeUnicodeToBase64(json);
+  
+  const currentUrl = window.location.origin + window.location.pathname;
+  return `${currentUrl}?tasks=${base64}`;
+}
+
+// Parse magic link and merge tasks (dedupe by ID)
+export function importTasksFromLink(encodedTasks: string): boolean {
+  try {
+    // Decode base64url with Unicode support
+    const json = decodeUnicodeFromBase64(encodedTasks);
+    const importedTasks: ShareableTask[] = JSON.parse(json);
+    
+    if (!Array.isArray(importedTasks) || importedTasks.length === 0) {
+      return false;
+    }
+    
+    // Convert to full Task objects
+    const newTasks: Task[] = importedTasks.map(task => ({
+      id: task.id,
+      name: task.name,
+      intervalDays: task.intervalDays,
+      lastCompleted: task.lastCompleted,
+      createdAt: task.createdAt,
+      initialDaysOffset: task.initialDaysOffset,
+    }));
+    
+    // Merge with existing tasks, dedupe by ID
+    const existingIds = new Set(tasks.value.map(t => t.id));
+    const tasksToAdd = newTasks.filter(t => !existingIds.has(t.id));
+    
+    if (tasksToAdd.length > 0) {
+      const updated = [...tasks.value, ...tasksToAdd];
+      tasks.value = updated;
+      saveTasks(updated);
+      return true;
+    }
+    
+    return false;
+  } catch (e) {
+    console.error('Failed to import tasks from link:', e);
+    return false;
   }
 }
 

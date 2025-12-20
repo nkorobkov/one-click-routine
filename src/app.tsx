@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'preact/hooks';
-import { tasks, addTask, deleteTask, completeTask, getDaysRemaining, checkDayChange, moveTaskUp, moveTaskDown, type Task, getDueDate, getDaysOverdue } from './store';
+import { tasks, addTask, deleteTask, completeTask, getDaysRemaining, checkDayChange, moveTaskUp, moveTaskDown, type Task, getDueDate, getDaysOverdue, generateMagicLink, importTasksFromLink } from './store';
 import { themes, type ThemeId, getStoredTheme, saveTheme, applyTheme } from './themes';
 import { translations, weekdays, months, type LanguageId, getStoredLanguage, saveLanguage } from './i18n';
 import './app.css';
@@ -17,10 +17,25 @@ export function App() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedTheme, setSelectedTheme] = useState<ThemeId>(getStoredTheme());
   const [selectedLanguage, setSelectedLanguage] = useState<LanguageId>(getStoredLanguage());
+  const [magicLinkCopied, setMagicLinkCopied] = useState(false);
   
   const t = translations[selectedLanguage];
   const weekdayNames = weekdays[selectedLanguage];
   const monthNames = months[selectedLanguage];
+
+  // Parse query parameter on mount to import tasks
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tasksParam = urlParams.get('tasks');
+    if (tasksParam) {
+      const imported = importTasksFromLink(tasksParam);
+      if (imported) {
+        // Remove the query parameter from URL after importing
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+      }
+    }
+  }, []);
 
   // Apply theme on mount and when theme changes
   useEffect(() => {
@@ -151,6 +166,34 @@ export function App() {
     }
   };
 
+  const handleCopyMagicLink = async () => {
+    const link = generateMagicLink();
+    if (link) {
+      try {
+        await navigator.clipboard.writeText(link);
+        setMagicLinkCopied(true);
+        setTimeout(() => setMagicLinkCopied(false), 2000);
+      } catch (e) {
+        console.error('Failed to copy link:', e);
+        // Fallback: select the text
+        const textArea = document.createElement('textarea');
+        textArea.value = link;
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+          document.execCommand('copy');
+          setMagicLinkCopied(true);
+          setTimeout(() => setMagicLinkCopied(false), 2000);
+        } catch (err) {
+          console.error('Fallback copy failed:', err);
+        }
+        document.body.removeChild(textArea);
+      }
+    }
+  };
+
   // Dashboard View
   if (view === 'dashboard') {
     return (
@@ -170,12 +213,9 @@ export function App() {
         {undoTaskId && (
           <div class="undo-toast" onClick={handleUndoDismiss}>
             <div class="undo-toast-content" onClick={(e) => e.stopPropagation()}>
-              <div class="undo-toast-text">{t.taskCompleted}</div>
+              <div class="undo-toast-text">{tasks.value.find((t) => t.id === undoTaskId)?.name} {t.taskCompleted}</div>
               <button class="undo-button" onClick={handleUndo} aria-label={t.undo}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 7v6h6"/>
-                  <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
-                </svg>
+                {t.undo}
               </button>
               <div class="undo-progress-bar" key={undoTaskId}>
                 <div class="undo-progress-fill"></div>
@@ -242,7 +282,7 @@ export function App() {
             <path d="M19 12H5M12 19l-7-7 7-7"/>
           </svg>
         </button>
-        <h1>Setup</h1>
+        <h1>{t.setup}</h1>
         <div style="width: 24px;"></div>
       </header>
       <main class="setup">
@@ -264,6 +304,7 @@ export function App() {
             <input
               id="interval-days"
               type="number"
+              inputmode="numeric"
               min="1"
               value={intervalDays}
               onInput={(e) => setIntervalDays(parseInt((e.target as HTMLInputElement).value) || 1)}
@@ -275,13 +316,14 @@ export function App() {
             <input
               id="initial-days"
               type="number"
+              inputmode="numeric"
               min="0"
               value={initialDaysOffset}
               onInput={(e) => {
                 const val = (e.target as HTMLInputElement).value;
                 setInitialDaysOffset(val === '' ? '' : parseInt(val) || 0);
               }}
-              placeholder={`Default: ${intervalDays} days`}
+              placeholder={`${t.inDays(intervalDays.toString())}`}
             />
             <small class="form-hint">{t.daysUntilFirstCompletionHint}</small>
           </div>
@@ -332,6 +374,34 @@ export function App() {
                 </div>
               </div>
             ))
+          )}
+        </div>
+        <div class="settings-section">
+          <h2>{t.shareTasks}</h2>
+          {tasks.value.length === 0 ? (
+            <p class="empty-message">{t.noTasksToShare}</p>
+          ) : (
+            <div class="form-group">
+              <label>{t.shareLinkDescription}</label>
+              <div class="magic-link-container">
+                <input
+                  type="text"
+                  readOnly
+                  value={generateMagicLink()}
+                  class="magic-link-input"
+                  id="magic-link-input"
+                />
+                <button
+                  type="button"
+                  class={`button-copy ${magicLinkCopied ? 'copied' : ''}`}
+                  onClick={handleCopyMagicLink}
+                  aria-label={magicLinkCopied ? t.linkCopied : t.copyLink}
+                >
+                  {magicLinkCopied ? t.linkCopied : t.copyLink}
+                </button>
+              </div>
+              <small class="form-hint">{t.shareLinkHint}</small>
+            </div>
           )}
         </div>
         <div class="settings-section">

@@ -45,7 +45,7 @@
 .settings-button {
   position: fixed;
   bottom: 16px;
-  right: 16px;
+  left: 16px;
   background-color: var(--settings-button-bg);
   color: var(--text-secondary);
   padding: 0;

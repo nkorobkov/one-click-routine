@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'preact/hooks';
-import { tasks, addTask, deleteTask, completeTask, getDaysRemaining, checkDayChange, formatDaysRemaining, formatOverdueTime, moveTaskUp, moveTaskDown, formatDueDate } from './store';
+import { tasks, addTask, deleteTask, completeTask, getDaysRemaining, checkDayChange, moveTaskUp, moveTaskDown, type Task, getDueDate, getDaysOverdue } from './store';
 import { themes, type ThemeId, getStoredTheme, saveTheme, applyTheme } from './themes';
+import { translations, weekdays, months, type LanguageId, getStoredLanguage, saveLanguage } from './i18n';
 import './app.css';
 
 type View = 'dashboard' | 'setup';
@@ -15,6 +16,11 @@ export function App() {
   const [undoTimeout, setUndoTimeout] = useState<number | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [selectedTheme, setSelectedTheme] = useState<ThemeId>(getStoredTheme());
+  const [selectedLanguage, setSelectedLanguage] = useState<LanguageId>(getStoredLanguage());
+  
+  const t = translations[selectedLanguage];
+  const weekdayNames = weekdays[selectedLanguage];
+  const monthNames = months[selectedLanguage];
 
   // Apply theme on mount and when theme changes
   useEffect(() => {
@@ -42,23 +48,17 @@ export function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // Format time as "HH:MM"
+  // Format time and date using translations
   const formatTime = (date: Date): string => {
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    return `${hours}:${minutes}`;
+    return t.timeFormat(date.getHours(), date.getMinutes());
   };
 
-  // Format date as "Wednesday 4 Dec"
-  const formatCurrentDate = (date: Date): string => {
-    const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    
-    const weekday = weekdays[date.getDay()];
-    const month = months[date.getMonth()];
-    const day = date.getDate();
-    
-    return `${weekday} ${day} ${month}`;
+  const formatDate = (date: Date): string => {
+    return t.dateFormat(weekdayNames[date.getDay()], date.getDate(), monthNames[date.getMonth()]);
+  };
+  
+  const formatDueDate = (task: Task): string => {
+    return formatDate(getDueDate(task));
   };
 
   const handleAddTask = (e: Event) => {
@@ -146,7 +146,7 @@ export function App() {
   };
 
   const handleDeleteTask = (id: string) => {
-    if (confirm('Delete this task?')) {
+    if (confirm(t.deleteTaskConfirm)) {
       deleteTask(id);
     }
   };
@@ -158,7 +158,7 @@ export function App() {
         <div class="time-bar">
           <div class="time-bar-content">
             <span class="time-display">{formatTime(currentTime)}</span>
-            <span class="date-display">{formatCurrentDate(currentTime)}</span>
+            <span class="date-display">{formatDate(currentTime)}</span>
           </div>
         </div>
         <button class="settings-button" onClick={() => setView('setup')} aria-label="Settings">
@@ -170,8 +170,8 @@ export function App() {
         {undoTaskId && (
           <div class="undo-toast" onClick={handleUndoDismiss}>
             <div class="undo-toast-content" onClick={(e) => e.stopPropagation()}>
-              <div class="undo-toast-text">Task completed</div>
-              <button class="undo-button" onClick={handleUndo} aria-label="Undo">
+              <div class="undo-toast-text">{t.taskCompleted}</div>
+              <button class="undo-button" onClick={handleUndo} aria-label={t.undo}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M3 7v6h6"/>
                   <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>
@@ -186,9 +186,9 @@ export function App() {
         <main class="dashboard">
           {tasks.value.length === 0 ? (
             <div class="empty-state">
-              <p>No tasks yet.</p>
+              <p>{t.noTasksYet}</p>
               <button class="button-primary" onClick={() => setView('setup')}>
-                Add Your First Task
+                {t.addYourFirstTask}
               </button>
             </div>
           ) : (
@@ -204,21 +204,21 @@ export function App() {
                   >
                     {isOverdue ? (
                       <div class="task-content-overdue">
-                        <h2 class="task-name-overdue">time to {task.name}</h2>
-                        <p class="task-overdue-time">{formatOverdueTime(task)}</p>
+                        <h2 class="task-name-overdue">{t.timeTo} {task.name}</h2>
+                        <p class="task-overdue-time">{t.formatOverdueTime(getDaysOverdue(task))}</p>
                         <div class="task-due-date">{formatDueDate(task)}</div>
                       </div>
                     ) : daysRemaining === 0 ? (
                       <div class="task-content">
                         <h2 class="task-name">
-                          {task.name}<span class="task-time">today</span>
+                          {task.name}<span class="task-time">{t.today}</span>
                         </h2>
                         <div class="task-due-date">{formatDueDate(task)}</div>
                       </div>
                     ) : (
                       <div class="task-content">
                         <h2 class="task-name">
-                          {task.name}<span class="task-time">in {formatDaysRemaining(daysRemaining)}</span>
+                          {task.name}<span class="task-time">{t.inDays(t.formatDays(daysRemaining))}</span>
                         </h2>
                         <div class="task-due-date">{formatDueDate(task)}</div>
                       </div>
@@ -237,7 +237,7 @@ export function App() {
   return (
     <div class="app">
       <header class="header">
-        <button class="icon-button" onClick={() => setView('dashboard')} aria-label="Back">
+        <button class="icon-button" onClick={() => setView('dashboard')} aria-label={t.back}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M19 12H5M12 19l-7-7 7-7"/>
           </svg>
@@ -247,20 +247,20 @@ export function App() {
       </header>
       <main class="setup">
         <form class="task-form" onSubmit={handleAddTask}>
-          <h2>Add New Task</h2>
+          <h2>{t.addNewTask}</h2>
           <div class="form-group">
-            <label for="task-name">Task Name</label>
+            <label for="task-name">{t.taskName}</label>
             <input
               id="task-name"
               type="text"
               value={taskName}
               onInput={(e) => setTaskName((e.target as HTMLInputElement).value)}
-              placeholder="e.g., Water flowers"
+              placeholder={t.taskNamePlaceholder}
               required
             />
           </div>
           <div class="form-group">
-            <label for="interval-days">Frequency (days)</label>
+            <label for="interval-days">{t.frequencyDays}</label>
             <input
               id="interval-days"
               type="number"
@@ -271,7 +271,7 @@ export function App() {
             />
           </div>
           <div class="form-group">
-            <label for="initial-days">Days until first completion (optional)</label>
+            <label for="initial-days">{t.daysUntilFirstCompletion}</label>
             <input
               id="initial-days"
               type="number"
@@ -283,21 +283,21 @@ export function App() {
               }}
               placeholder={`Default: ${intervalDays} days`}
             />
-            <small class="form-hint">Leave empty to use frequency as default</small>
+            <small class="form-hint">{t.daysUntilFirstCompletionHint}</small>
           </div>
-          <button type="submit" class="button-primary">Add Task</button>
+          <button type="submit" class="button-primary">{t.addTask}</button>
         </form>
 
         <div class="task-list">
-          <h2>Your Tasks</h2>
+          <h2>{t.yourTasks}</h2>
           {tasks.value.length === 0 ? (
-            <p class="empty-message">No tasks configured yet.</p>
+            <p class="empty-message">{t.noTasksConfigured}</p>
           ) : (
             tasks.value.map((task, index) => (
               <div key={task.id} class="task-item">
                 <div class="task-item-content">
                   <h3>{task.name}</h3>
-                  <p>Every {task.intervalDays} day{task.intervalDays !== 1 ? 's' : ''}</p>
+                  <p>{t.everyDays(task.intervalDays)}</p>
                 </div>
                 <div class="task-item-actions">
                   <button
@@ -322,8 +322,8 @@ export function App() {
                   </button>
                   <button
                     class="button-danger"
-                    onClick={() => handleDeleteTask(task.id)}
-                    aria-label="Delete task"
+                  onClick={() => handleDeleteTask(task.id)}
+                  aria-label={t.deleteTask}
                   >
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
@@ -335,9 +335,25 @@ export function App() {
           )}
         </div>
         <div class="settings-section">
-          <h2>Theme</h2>
+          <h2>{t.theme}</h2>
           <div class="form-group">
-            <label for="theme-select">Color Theme</label>
+            <label for="language-select">{t.language}</label>
+            <select
+              id="language-select"
+              value={selectedLanguage}
+              onChange={(e) => {
+                const newLanguage = (e.target as HTMLSelectElement).value as LanguageId;
+                setSelectedLanguage(newLanguage);
+                saveLanguage(newLanguage);
+              }}
+              class="theme-select"
+            >
+              <option value="en">{t.languageEnglish}</option>
+              <option value="ru">{t.languageRussian}</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="theme-select">{t.colorTheme}</label>
             <select
               id="theme-select"
               value={selectedTheme}

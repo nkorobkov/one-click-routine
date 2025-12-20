@@ -131,6 +131,7 @@ export function getDaysRemaining(task: Task): number {
 }
 
 // Helper: Format days as "X days" or "Xw Yd" format
+// This function returns just the number/format part, language-specific "in" prefix is handled in component
 export function formatDaysRemaining(days: number): string {
   if (days <= 0) return '';
   
@@ -159,10 +160,22 @@ export function getDueDate(task: Task): Date {
   
   const daysRemaining = getDaysRemaining(task);
   
+  if (daysRemaining <= 0) {
+    // Already due, return today
+    return today;
+  }
+  
   // Calculate due date by adding days remaining
   const dueDate = new Date(today);
   dueDate.setDate(today.getDate() + daysRemaining);
   return dueDate;
+}
+
+// Helper: Calculate days overdue for a task (language-agnostic)
+export function getDaysOverdue(task: Task): number {
+  const today = getDateString();
+  const lastCompletedDate = timestampToDateString(task.lastCompleted);
+  return daysBetween(lastCompletedDate, today) - task.intervalDays;
 }
 
 // Helper: Format due date as "Wednesday Dec 3"
@@ -178,40 +191,6 @@ export function formatDueDate(task: Task): string {
   return `${weekday} ${month} ${day}`;
 }
 
-// Helper: Format overdue time as "N days ago" or "N weeks ago" or "N months ago"
-export function formatOverdueTime(task: Task): string {
-  const today = getDateString();
-  const lastCompletedDate = timestampToDateString(task.lastCompleted);
-  const daysOverdue = daysBetween(lastCompletedDate, today) - task.intervalDays;
-  
-  if (daysOverdue === 0) {
-    return `today`;
-  }
-
-  if (daysOverdue < 7) {
-    return `${daysOverdue} day${daysOverdue !== 1 ? 's' : ''} ago`;
-  }
-  
-  if (daysOverdue < 30) {
-    const weeks = Math.floor(daysOverdue / 7);
-    const days = daysOverdue % 7;
-    if (days === 0) {
-      return `${weeks} week${weeks !== 1 ? 's' : ''} ago`;
-    }
-    return `${weeks}w ${days}d ago`;
-  }
-  
-  const months = Math.floor(daysOverdue / 30);
-  const remainingDays = daysOverdue % 30;
-  if (remainingDays === 0) {
-    return `${months} month${months !== 1 ? 's' : ''} ago`;
-  }
-  const weeks = Math.floor(remainingDays / 7);
-  if (weeks === 0) {
-    return `${months}mo ${remainingDays}d ago`;
-  }
-  return `${months}mo ${weeks}w ago`;
-}
 
 // Actions
 export function addTask(name: string, intervalDays: number, initialDaysOffset?: number) {

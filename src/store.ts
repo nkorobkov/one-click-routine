@@ -5,8 +5,6 @@ export interface Task {
   name: string;
   intervalDays: number;
   lastCompleted: number; // Timestamp
-  createdAt: number; // Timestamp when task was created
-  initialDaysOffset?: number; // Optional: days until first completion (defaults to intervalDays)
 }
 
 const STORAGE_KEY = 'one-click-routine-tasks';
@@ -43,7 +41,7 @@ function loadTasks(): Task[] {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const tasks = JSON.parse(stored);
-      return tasks;
+      return tasks
     }
   } catch (e) {
     console.error('Failed to load tasks from localStorage:', e);
@@ -90,53 +88,25 @@ function daysBetween(date1: string, date2: string): number {
 export function getDaysRemaining(task: Task): number {
   const today = getDateString();
   const lastCompletedDate = timestampToDateString(task.lastCompleted);
-  // Handle backward compatibility - if createdAt doesn't exist, use lastCompleted
-  const createdAt = task.createdAt || task.lastCompleted;
-  const createdAtDate = timestampToDateString(createdAt);
   
-  // Check if task has never been completed (lastCompleted timestamp equals createdAt timestamp)
-  // This ensures that even if created and completed on the same calendar day, 
-  // after first completion it uses intervalDays
-  const isFirstCycle = task.lastCompleted === createdAt;
+  // Simple calculation: days elapsed since last completion
+  const daysElapsed = daysBetween(lastCompletedDate, today);
+  const daysRemaining = task.intervalDays - daysElapsed;
   
-  if (isFirstCycle) {
-    // Use initial offset for first cycle
-    const initialOffset = task.initialDaysOffset ?? task.intervalDays;
-    const daysElapsed = daysBetween(createdAtDate, today);
-    const daysRemaining = initialOffset - daysElapsed;
-    debug(
-      'getDaysRemaining task (first cycle):',
-      task.name,
-      'createdAtDate:',
-      createdAtDate,
-      'today:',
-      today,
-      'daysElapsed:',
-      daysElapsed.toString(),
-      'initialOffset:',
-      initialOffset.toString(),
-      'daysRemaining:',
-      daysRemaining.toString()
-    );
-    return daysRemaining;
-  } else {
-    // Normal cycle calculation
-    const daysElapsed = daysBetween(lastCompletedDate, today);
-    const daysRemaining = task.intervalDays - daysElapsed;
-    debug(
-      'getDaysRemaining task:',
-      task.name,
-      'lastCompletedDate:',
-      lastCompletedDate,
-      'today:',
-      today,
-      'daysElapsed:',
-      daysElapsed.toString(),
-      'daysRemaining:',
-      daysRemaining.toString()
-    );
-    return daysRemaining;
-  }
+  debug(
+    'getDaysRemaining task:',
+    task.name,
+    'lastCompletedDate:',
+    lastCompletedDate,
+    'today:',
+    today,
+    'daysElapsed:',
+    daysElapsed.toString(),
+    'daysRemaining:',
+    daysRemaining.toString()
+  );
+  
+  return daysRemaining;
 }
 
 // Helper: Get the due date for a task
@@ -181,13 +151,30 @@ export function formatDueDate(task: Task): string {
 // Actions
 export function addTask(name: string, intervalDays: number, initialDaysOffset?: number) {
   const now = Date.now();
+  
+  // Calculate lastCompleted timestamp
+  // If initialDaysOffset is provided, set lastCompleted in the past
+  // so that the normal calculation gives the correct due date
+  // Example: intervalDays=5, initialDaysOffset=3
+  //   We want first completion in 3 days
+  //   Set lastCompleted to (now - (5 - 3) * 24 * 60 * 60 * 1000)
+  //   = now - 2 days ago
+  //   Then: daysElapsed = 2, daysRemaining = 5 - 2 = 3 ✓
+  let lastCompleted: number;
+  if (initialDaysOffset !== undefined && initialDaysOffset !== intervalDays) {
+    const daysToSubtract = intervalDays - initialDaysOffset;
+    const msToSubtract = daysToSubtract * 24 * 60 * 60 * 1000;
+    lastCompleted = now - msToSubtract;
+  } else {
+    // Default: set to now (task is due immediately or after full interval)
+    lastCompleted = now;
+  }
+  
   const newTask: Task = {
     id: generateShortId(),
     name,
     intervalDays,
-    lastCompleted: now, // Set to creation time initially
-    createdAt: now,
-    initialDaysOffset: initialDaysOffset ?? intervalDays, // Default to intervalDays if not specified
+    lastCompleted,
   };
   const updated = [...tasks.value, newTask];
   tasks.value = updated;
@@ -244,11 +231,9 @@ export function checkDayChange() {
 // Minimal task data for sharing (only what's needed to recreate the task)
 interface ShareableTask {
   id: string;
-  name: string;
-  intervalDays: number;
-  lastCompleted: number;
-  createdAt: number;
-  initialDaysOffset?: number;
+  n: string;
+  i: number;
+  lc: number;
 }
 
 // Unicode-safe base64 encoding (handles emojis and all Unicode characters)
@@ -304,11 +289,9 @@ export function generateMagicLink(): string {
   
   const shareableTasks: ShareableTask[] = tasks.value.map(task => ({
     id: task.id,
-    name: task.name,
-    intervalDays: task.intervalDays,
-    lastCompleted: task.lastCompleted,
-    createdAt: task.createdAt,
-    initialDaysOffset: task.initialDaysOffset,
+    n: task.name,
+    i: task.intervalDays,
+    lc: task.lastCompleted,
   }));
   
   const json = JSON.stringify(shareableTasks);
@@ -330,19 +313,17 @@ export function importTasksFromLink(encodedTasks: string): boolean {
       return false;
     }
     
-    // Convert to full Task objects
-    const newTasks: Task[] = importedTasks.map(task => ({
-      id: task.id,
-      name: task.name,
-      intervalDays: task.intervalDays,
-      lastCompleted: task.lastCompleted,
-      createdAt: task.createdAt,
-      initialDaysOffset: task.initialDaysOffset,
-    }));
     
     // Merge with existing tasks, dedupe by ID
     const existingIds = new Set(tasks.value.map(t => t.id));
-    const tasksToAdd = newTasks.filter(t => !existingIds.has(t.id));
+    const tasksToAdd = importedTasks.filter(t => !existingIds.has(t.id)).map(
+      (t) => ({
+        id: t.id,
+        name: t.n,
+        intervalDays: t.i,
+        lastCompleted: t.lc,
+      })
+    );
     
     if (tasksToAdd.length > 0) {
       const updated = [...tasks.value, ...tasksToAdd];

@@ -8,6 +8,7 @@ export interface Task {
 }
 
 const STORAGE_KEY = 'one-click-routine-tasks';
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 export const debug = (...args: string[]) => {
   if (import.meta.env.DEV) {
@@ -211,6 +212,22 @@ export function completeTask(id: string) {
   const updated = tasks.value.map((t) =>
     t.id === id ? { ...t, lastCompleted: Date.now() } : t
   );
+  tasks.value = updated;
+  saveTasks(updated);
+}
+
+// Adjust task time left by adding or subtracting days
+export function adjustTaskTime(id: string, daysDelta: number) {
+  const updated = tasks.value.map((t) => {
+    if (t.id === id) {
+      // Add/subtract days by modifying lastCompleted timestamp
+      // To add one day to the remaining period, we need to move lastcompleted forward.
+      const msPerDay = MS_PER_DAY;
+      const newLastCompleted = t.lastCompleted + (daysDelta * msPerDay);
+      return { ...t, lastCompleted: newLastCompleted };
+    }
+    return t;
+  });
   tasks.value = updated;
   saveTasks(updated);
 }

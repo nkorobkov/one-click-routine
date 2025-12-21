@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'preact/hooks';
-import { tasks, addTask, deleteTask, completeTask, getDaysRemaining, checkDayChange, moveTaskUp, moveTaskDown, type Task, getDueDate, getDaysOverdue, generateMagicLink, importTasksFromLink } from './store';
+import { useEffect, useState, useRef } from 'preact/hooks';
+import { tasks, addTask, deleteTask, completeTask, getDaysRemaining, checkDayChange, moveTaskUp, moveTaskDown, type Task, getDueDate, getDaysOverdue, generateMagicLink, importTasksFromLink, adjustTaskTime } from './store';
 import { themes, type ThemeId, getStoredTheme, saveTheme, applyTheme } from './themes';
 import { translations, weekdays, months, type LanguageId, getStoredLanguage, saveLanguage } from './i18n';
 import './app.css';
@@ -18,6 +18,9 @@ export function App() {
   const [selectedTheme, setSelectedTheme] = useState<ThemeId>(getStoredTheme());
   const [selectedLanguage, setSelectedLanguage] = useState<LanguageId>(getStoredLanguage());
   const [magicLinkCopied, setMagicLinkCopied] = useState(false);
+  const [timeAdjustPopup, setTimeAdjustPopup] = useState<{ taskId: string; x: number; y: number } | null>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
+  const isClosingPopupRef = useRef(false);
   
   const t = translations[selectedLanguage];
   const weekdayNames = weekdays[selectedLanguage];
@@ -36,6 +39,15 @@ export function App() {
       }
     }
   }, []);
+
+  // Close popup handler (simplified - backdrop handles clicks outside)
+  const handleClosePopup = () => {
+    isClosingPopupRef.current = true;
+    setTimeAdjustPopup(null);
+    setTimeout(() => {
+      isClosingPopupRef.current = false;
+    }, 0);
+  };
 
   // Apply theme on mount and when theme changes
   useEffect(() => {
@@ -123,7 +135,7 @@ export function App() {
       setUndoTaskId(null);
       setUndoPreviousTime(null);
       setUndoTimeout(null);
-    }, 5000);
+    }, 3000);
     
     setUndoTimeout(timeout);
   };
@@ -165,6 +177,24 @@ export function App() {
       deleteTask(id);
     }
   };
+
+  const handleTimeElementClick = (e: Event, taskId: string) => {
+    e.stopPropagation(); // Prevent task completion
+    const target = e.target as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    // Position popup above the element, centered horizontally
+    setTimeAdjustPopup({
+      taskId,
+      x: rect.left + rect.width / 2, // Center horizontally
+      y: rect.top, // Top of the element (popup will be positioned above via CSS transform)
+    });
+  };
+
+  const handleAdjustTime = (taskId: string, delta: number) => {
+    adjustTaskTime(taskId, delta);
+    // Keep popup open for multiple adjustments
+  };
+
 
   const handleCopyMagicLink = async () => {
     const link = generateMagicLink();
@@ -245,20 +275,40 @@ export function App() {
                     {isOverdue ? (
                       <div class="task-content-overdue">
                         <h2 class="task-name-overdue">{t.timeTo} {task.name}</h2>
-                        <p class="task-overdue-time">{t.formatOverdueTime(getDaysOverdue(task))}</p>
+                        <p 
+                          class="task-overdue-time"
+                          onClick={(e) => handleTimeElementClick(e, task.id)}
+                          style="cursor: pointer;"
+                        >
+                          {t.formatOverdueTime(getDaysOverdue(task))}
+                        </p>
                         <div class="task-due-date">{formatDueDate(task)}</div>
                       </div>
                     ) : daysRemaining === 0 ? (
                       <div class="task-content">
                         <h2 class="task-name">
-                          {task.name}<span class="task-time">{t.today}</span>
+                          {task.name}
+                          <span 
+                            class="task-time"
+                            onClick={(e) => handleTimeElementClick(e, task.id)}
+                            style="cursor: pointer;"
+                          >
+                            {t.today}
+                          </span>
                         </h2>
                         <div class="task-due-date">{formatDueDate(task)}</div>
                       </div>
                     ) : (
                       <div class="task-content">
                         <h2 class="task-name">
-                          {task.name}<span class="task-time">{t.inDays(t.formatDays(daysRemaining))}</span>
+                          {task.name}
+                          <span 
+                            class="task-time"
+                            onClick={(e) => handleTimeElementClick(e, task.id)}
+                            style="cursor: pointer;"
+                          >
+                            {t.inDays(t.formatDays(daysRemaining))}
+                          </span>
                         </h2>
                         <div class="task-due-date">{formatDueDate(task)}</div>
                       </div>
@@ -269,6 +319,43 @@ export function App() {
             </div>
           )}
         </main>
+        {timeAdjustPopup && (
+          <>
+            <div
+              class="time-adjust-popup-backdrop"
+              onClick={handleClosePopup}
+            />
+            <div
+              ref={popupRef}
+              class="time-adjust-popup"
+              style={`left: ${timeAdjustPopup.x}px; top: ${timeAdjustPopup.y}px;`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                class="time-adjust-button"
+                onClick={() => {
+                  handleAdjustTime(timeAdjustPopup.taskId, -1);
+                  // Remove focus to prevent stuck highlighting
+                  (document.activeElement as HTMLElement)?.blur();
+                }}
+                aria-label="Subtract one day"
+              >
+                −
+              </button>
+              <button
+                class="time-adjust-button"
+                onClick={() => {
+                  handleAdjustTime(timeAdjustPopup.taskId, 1);
+                  // Remove focus to prevent stuck highlighting
+                  (document.activeElement as HTMLElement)?.blur();
+                }}
+                aria-label="Add one day"
+              >
+                +
+              </button>
+            </div>
+          </>
+        )}
       </div>
     );
   }

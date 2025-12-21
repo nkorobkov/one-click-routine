@@ -67,7 +67,7 @@ export const translations: Record<LanguageId, Translations> = {
     noTasksYet: 'No tasks yet.',
     addYourFirstTask: 'Add Your First Task',
     taskCompleted: 'Task completed',
-    timeTo: 'time to',
+    timeTo: 'Time to',
     today: 'today',
     inDays: (days) => `in ${days}`,
     formatDays: (days) => {
@@ -139,7 +139,7 @@ export const translations: Record<LanguageId, Translations> = {
     noTasksYet: 'Пока делать нечего',
     addYourFirstTask: 'Добавить рутину',
     taskCompleted: '✅',
-    timeTo: 'пора',
+    timeTo: 'Пора',
     today: 'сегодня',
     inDays: (days) => `${days}`,
     formatDays: (days) => {

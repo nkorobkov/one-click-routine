@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'preact/hooks';
 import { tasks, addTask, deleteTask, completeTask, getDaysRemaining, checkDayChange, moveTaskUp, moveTaskDown, type Task, getDueDate, getDaysOverdue, generateMagicLink, importTasksFromLink, adjustTaskTime } from './store';
 import { themes, type ThemeId, getStoredTheme, saveTheme, applyTheme } from './themes';
 import { translations, weekdays, months, type LanguageId, getStoredLanguage, saveLanguage } from './i18n';
+import textFit from 'textfit';
 import './app.css';
 
 type View = 'dashboard' | 'setup';
@@ -21,6 +22,7 @@ export function App() {
   const [timeAdjustPopup, setTimeAdjustPopup] = useState<{ taskId: string; x: number; y: number } | null>(null);
   const popupRef = useRef<HTMLDivElement>(null);
   const isClosingPopupRef = useRef(false);
+  const taskNameRefs = useRef<Map<string, HTMLElement>>(new Map());
   
   const t = translations[selectedLanguage];
   const weekdayNames = weekdays[selectedLanguage];
@@ -73,6 +75,57 @@ export function App() {
     }, 60000); // Every 60 seconds
 
     return () => clearInterval(interval);
+  }, []);
+
+  // Apply textFit to task names
+  useEffect(() => {
+    // Only apply textFit when on dashboard view
+    if (view !== 'dashboard') {
+      return;
+    }
+
+    // Use requestAnimationFrame for immediate application
+    const frameId = requestAnimationFrame(() => {
+      // Double RAF to ensure layout is complete
+      requestAnimationFrame(() => {
+        // Apply textFit to all task name elements
+        taskNameRefs.current.forEach((element) => {
+          if (element) {
+            textFit(element, {
+              minFontSize: 12,
+              maxFontSize: 200,
+              multiLine: true,
+              alignVert: true,
+              alignHoriz: true,
+            });
+          }
+        });
+      });
+    });
+
+    return () => {
+      cancelAnimationFrame(frameId);
+    };
+  }, [tasks.value, selectedLanguage, view]);
+
+  // Recalculate textFit on window resize
+  useEffect(() => {
+    const handleResize = () => {
+      taskNameRefs.current.forEach((element) => {
+        if (element) {
+          textFit(element, {
+            minFontSize: 12,
+            maxFontSize: 200,
+            multiLine: true,
+            alignVert: true,
+            alignHoriz: true,
+          });
+        }
+      });
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   // Format time and date using translations
@@ -268,50 +321,56 @@ export function App() {
                 const isOverdue = daysRemaining <= 0;
                 return (
                   <button
-                    key={task.id}
+                    key={`${task.id}-${isOverdue}`}
                     class={`task-card ${isOverdue ? 'overdue' : ''}`}
                     onClick={() => handleCompleteTask(task.id)}
                   >
                     {isOverdue ? (
-                      <div class="task-content-overdue">
-                        <h2 class="task-name-overdue">{t.timeTo} {task.name}</h2>
-                        <p 
-                          class="task-overdue-time"
+                      <>
+                        <div 
+                          class="task-name-overdue"
+                          ref={(el) => {
+                            if (el) {
+                              taskNameRefs.current.set(task.id, el);
+                            } else {
+                              taskNameRefs.current.delete(task.id);
+                            }
+                          }}
+                        >
+                          {t.timeTo} { task.name.toLowerCase()}
+                        </div>
+                        <span 
+                          class="task-time"
                           onClick={(e) => handleTimeElementClick(e, task.id)}
                           style="cursor: pointer;"
                         >
                           {t.formatOverdueTime(getDaysOverdue(task))}
-                        </p>
+                        </span>
                         <div class="task-due-date">{formatDueDate(task)}</div>
-                      </div>
-                    ) : daysRemaining === 0 ? (
-                      <div class="task-content">
-                        <h2 class="task-name">
-                          {task.name}
-                          <span 
-                            class="task-time"
-                            onClick={(e) => handleTimeElementClick(e, task.id)}
-                            style="cursor: pointer;"
-                          >
-                            {t.today}
-                          </span>
-                        </h2>
-                        <div class="task-due-date">{formatDueDate(task)}</div>
-                      </div>
+                      </>
                     ) : (
-                      <div class="task-content">
-                        <h2 class="task-name">
+                      <>
+                        <div 
+                          class="task-name"
+                          ref={(el) => {
+                            if (el) {
+                              taskNameRefs.current.set(task.id, el);
+                            } else {
+                              taskNameRefs.current.delete(task.id);
+                            }
+                          }}
+                        >
                           {task.name}
-                          <span 
-                            class="task-time"
-                            onClick={(e) => handleTimeElementClick(e, task.id)}
-                            style="cursor: pointer;"
-                          >
-                            {t.inDays(t.formatDays(daysRemaining))}
-                          </span>
-                        </h2>
+                        </div>
+                        <span 
+                          class="task-time"
+                          onClick={(e) => handleTimeElementClick(e, task.id)}
+                          style="cursor: pointer;"
+                        >
+                          {t.inDays(t.formatDays(daysRemaining))}
+                        </span>
                         <div class="task-due-date">{formatDueDate(task)}</div>
-                      </div>
+                      </>
                     )}
                   </button>
                 );

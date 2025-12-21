@@ -10,11 +10,13 @@
   },
   "dependencies": {
     "@preact/signals": "^2.5.1",
-    "preact": "^10.27.2"
+    "preact": "^10.27.2",
+    "textfit": "^2.4.0"
   },
   "devDependencies": {
     "@preact/preset-vite": "^2.10.2",
     "@types/node": "^24.10.1",
+    "@types/textfit": "^2.4.5",
     "gh-pages": "^6.3.0",
     "typescript": "~5.9.3",
     "vite": "npm:rolldown-vite@7.2.5"

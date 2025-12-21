@@ -94,19 +94,6 @@ export function getDaysRemaining(task: Task): number {
   const daysElapsed = daysBetween(lastCompletedDate, today);
   const daysRemaining = task.intervalDays - daysElapsed;
   
-  debug(
-    'getDaysRemaining task:',
-    task.name,
-    'lastCompletedDate:',
-    lastCompletedDate,
-    'today:',
-    today,
-    'daysElapsed:',
-    daysElapsed.toString(),
-    'daysRemaining:',
-    daysRemaining.toString()
-  );
-  
   return daysRemaining;
 }
 
@@ -116,11 +103,6 @@ export function getDueDate(task: Task): Date {
   today.setHours(0, 0, 0, 0);
   
   const daysRemaining = getDaysRemaining(task);
-  
-  if (daysRemaining <= 0) {
-    // Already due, return today
-    return today;
-  }
   
   // Calculate due date by adding days remaining
   const dueDate = new Date(today);

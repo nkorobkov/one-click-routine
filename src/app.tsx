@@ -77,6 +77,38 @@ export function App() {
     return () => clearInterval(interval);
   }, []);
 
+  // Helper function to apply textFit to a single element
+  const applyTextFitToElement = (element: HTMLElement) => {
+    textFit(element, {
+      minFontSize: 12,
+      maxFontSize: 200,
+      multiLine: true,
+      alignVert: true,
+      alignHoriz: true,
+    });
+    // Fix vertical centering by adjusting the wrapper height
+    const wrapper = element.querySelector('*') as HTMLElement;
+    if (wrapper) {
+      // Set the wrapper height to auto so it only takes the space it needs
+      wrapper.style.height = 'auto';
+      wrapper.style.minHeight = '0';
+      wrapper.style.maxHeight = 'none';
+      // Use flexbox to center the actual content
+      wrapper.style.display = 'flex';
+      wrapper.style.flexDirection = 'column';
+      wrapper.style.justifyContent = 'center';
+    }
+  };
+
+  // Helper function to apply textFit to all task name elements
+  const applyTextFitToAll = () => {
+    taskNameRefs.current.forEach((element) => {
+      if (element) {
+        applyTextFitToElement(element);
+      }
+    });
+  };
+
   // Apply textFit to task names
   useEffect(() => {
     // Only apply textFit when on dashboard view
@@ -88,18 +120,7 @@ export function App() {
     const frameId = requestAnimationFrame(() => {
       // Double RAF to ensure layout is complete
       requestAnimationFrame(() => {
-        // Apply textFit to all task name elements
-        taskNameRefs.current.forEach((element) => {
-          if (element) {
-            textFit(element, {
-              minFontSize: 12,
-              maxFontSize: 200,
-              multiLine: true,
-              alignVert: true,
-              alignHoriz: true,
-            });
-          }
-        });
+        applyTextFitToAll();
       });
     });
 
@@ -111,17 +132,7 @@ export function App() {
   // Recalculate textFit on window resize
   useEffect(() => {
     const handleResize = () => {
-      taskNameRefs.current.forEach((element) => {
-        if (element) {
-          textFit(element, {
-            minFontSize: 12,
-            maxFontSize: 200,
-            multiLine: true,
-            alignVert: true,
-            alignHoriz: true,
-          });
-        }
-      });
+      applyTextFitToAll();
     };
 
     window.addEventListener('resize', handleResize);

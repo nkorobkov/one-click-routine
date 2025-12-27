@@ -66,7 +66,10 @@ export const tasks = signal<Task[]>(loadTasks());
 // Format: YYYY-MM-DD to handle month/year boundaries correctly
 function getDateString(): string {
   const now = new Date();
-  return now.toISOString().split('T')[0];
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 export const currentDate = signal<string>(getDateString());
@@ -74,13 +77,21 @@ export const currentDate = signal<string>(getDateString());
 // Helper: Convert timestamp to date string (YYYY-MM-DD)
 function timestampToDateString(timestamp: number): string {
   const date = new Date(timestamp);
-  return date.toISOString().split('T')[0];
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 // Helper: Calculate difference in calendar days between two date strings
 function daysBetween(date1: string, date2: string): number {
-  const d1 = new Date(date1);
-  const d2 = new Date(date2);
+  // Parse date strings as local dates (YYYY-MM-DD format)
+  const parseLocalDate = (dateStr: string): Date => {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  };
+  const d1 = parseLocalDate(date1);
+  const d2 = parseLocalDate(date2);
   const diffTime = d2.getTime() - d1.getTime();
   return Math.floor(diffTime / (1000 * 60 * 60 * 24));
 }
@@ -218,7 +229,7 @@ export function adjustTaskTime(id: string, daysDelta: number) {
 export function checkDayChange() {
   debug('checkDayChange');
   const today = getDateString();
-  tasks.value = [...tasks.value];
+  //tasks.value = [...tasks.value];
   if (currentDate.value !== today) {
     debug('day changed', currentDate.value, today);
     currentDate.value = today;

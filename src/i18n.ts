@@ -188,7 +188,19 @@ export const translations: Record<LanguageId, Translations> = {
     languageEnglish: 'Английский',
     languageRussian: 'Русский',
     everyDays: (days) => {
-      const dayWord = days%10 === 1 ? 'день' : days%10 < 5 ? 'дня' : 'дней';
+      // For Russian, the rules are:
+      // - singular 'день' for numbers ending in 1 (except 11)
+      // - 'дня' for numbers ending in 2-4 (except 12-14)
+      // - 'дней' for all other cases
+      if (days === 1) return 'Каждый день';
+      const mod10 = days % 10;
+      const mod100 = days % 100;
+      let dayWord = 'дней';
+      if (mod10 === 1 && mod100 !== 11) {
+        dayWord = 'день';
+      } else if ([2, 3, 4].includes(mod10) && ![12, 13, 14].includes(mod100)) {
+        dayWord = 'дня';
+      }
       return `Каждые ${days} ${dayWord}`;
     },
     formatOverdueTime: (daysOverdue) => {

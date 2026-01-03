@@ -27,6 +27,9 @@ export interface Translations {
   noTasksConfigured: string;
   deleteTask: string;
   deleteTaskConfirm: string;
+  deleteTaskMessage: string;
+  keep: string;
+  delete: string;
   
   // Theme
   theme: string;
@@ -98,6 +101,9 @@ export const translations: Record<LanguageId, Translations> = {
     noTasksConfigured: 'No tasks configured yet.',
     deleteTask: 'Delete task',
     deleteTaskConfirm: 'Delete this task?',
+    deleteTaskMessage: 'Are you sure you want to delete this task?',
+    keep: 'Keep',
+    delete: 'Delete',
     theme: 'Theme',
     colorTheme: 'Color Theme',
     language: 'Language',
@@ -180,6 +186,9 @@ export const translations: Record<LanguageId, Translations> = {
     noTasksConfigured: 'Нет рутин',
     deleteTask: 'Удалить',
     deleteTaskConfirm: 'Удалить эту рутину?',
+    deleteTaskMessage: 'Вы уверены, что хотите удалить эту рутину?',
+    keep: 'Оставить',
+    delete: 'Удалить',
     theme: 'Настройки',
     colorTheme: 'Цветовая тема',
     language: 'Язык',

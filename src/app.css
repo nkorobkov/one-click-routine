@@ -661,8 +661,8 @@
 }
 
 
-/* Unsaved Changes Popup */
-.unsaved-changes-backdrop {
+/* Popup Component */
+.popup-backdrop {
   position: fixed;
   top: 0;
   left: 0;
@@ -675,7 +675,7 @@
   justify-content: center;
 }
 
-.unsaved-changes-popup {
+.popup {
   position: fixed;
   top: 50%;
   left: 50%;
@@ -690,21 +690,21 @@
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
-.unsaved-changes-popup-header {
+.popup-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 16px;
 }
 
-.unsaved-changes-popup-header h2 {
+.popup-header h2 {
   font-size: 20px;
   font-weight: 600;
   color: var(--text-primary);
   margin: 0;
 }
 
-.unsaved-changes-close {
+.popup-close {
   background-color: transparent;
   color: var(--text-secondary);
   padding: 8px;
@@ -719,24 +719,28 @@
   min-height: 32px;
 }
 
-.unsaved-changes-close:active {
+.popup-close:active {
   background-color: var(--button-hover);
 }
 
-.unsaved-changes-message {
+.popup-message {
   color: var(--text-secondary);
   font-size: 14px;
   margin-bottom: 24px;
   line-height: 1.5;
 }
 
-.unsaved-changes-actions {
+.popup-actions {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.unsaved-changes-actions .button-secondary {
+.popup-actions .button-primary {
+  width: 100%;
+}
+
+.popup-actions .button-secondary {
   background-color: transparent;
   color: var(--text-primary);
   padding: 12px 20px;
@@ -746,13 +750,14 @@
   border: 1px solid var(--border-color);
   cursor: pointer;
   transition: all 0.2s;
+  width: 100%;
 }
 
-.unsaved-changes-actions .button-secondary:active {
+.popup-actions .button-secondary:active {
   background-color: var(--button-hover);
 }
 
-.unsaved-changes-actions .button-danger {
+.popup-actions .button-danger {
   background-color: transparent;
   color: var(--danger);
   padding: 12px 20px;
@@ -765,7 +770,7 @@
   width: 100%;
 }
 
-.unsaved-changes-actions .button-danger:active {
+.popup-actions .button-danger:active {
   background-color: var(--button-danger-active-bg);
 }
 

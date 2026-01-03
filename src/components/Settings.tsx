@@ -2,6 +2,7 @@ import { useState, useEffect } from 'preact/hooks';
 import { tasks, addTask, deleteTask, moveTaskUp, moveTaskDown, generateMagicLink, updateTask, type Task } from '../store';
 import { themes, type ThemeId, getStoredTheme, saveTheme, applyTheme } from '../themes';
 import { translations, type LanguageId, saveLanguage } from '../i18n';
+import { Popup } from './Popup';
 
 interface SettingsProps {
   selectedLanguage: LanguageId;
@@ -23,6 +24,7 @@ export function Settings({ selectedLanguage, onBackClick, onLanguageChange }: Se
   const [magicLinkCopied, setMagicLinkCopied] = useState(false);
   const [editingTasks, setEditingTasks] = useState<Map<string, EditingTask>>(new Map());
   const [showUnsavedChangesPopup, setShowUnsavedChangesPopup] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
   
   const t = translations[selectedLanguage];
   
@@ -51,9 +53,18 @@ export function Settings({ selectedLanguage, onBackClick, onLanguageChange }: Se
   };
 
   const handleDeleteTask = (id: string) => {
-    if (confirm(t.deleteTaskConfirm)) {
-      deleteTask(id);
+    setTaskToDelete(id);
+  };
+
+  const handleConfirmDelete = () => {
+    if (taskToDelete) {
+      deleteTask(taskToDelete);
+      setTaskToDelete(null);
     }
+  };
+
+  const handleCancelDelete = () => {
+    setTaskToDelete(null);
   };
 
   const handleCopyMagicLink = async () => {
@@ -386,49 +397,54 @@ export function Settings({ selectedLanguage, onBackClick, onLanguageChange }: Se
         </div>
       </main>
       {showUnsavedChangesPopup && (
-        <>
-          <div
-            class="unsaved-changes-backdrop"
-            onClick={(e) => e.stopPropagation()}
-          />
-          <div class="unsaved-changes-popup">
-            <div class="unsaved-changes-popup-header">
-              <h2>{t.unsavedChanges}</h2>
-              <button
-                class="unsaved-changes-close"
-                onClick={handleStay}
-                aria-label={t.stay}
-              >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="18" y1="6" x2="6" y2="18"/>
-                  <line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-              </button>
-            </div>
-            <p class="unsaved-changes-message">{t.unsavedChangesMessage}</p>
-            <div class="unsaved-changes-actions">
-              <button
-                class="button-primary"
-                onClick={handleSaveAndExit}
-              >
-                {t.saveAndExit}
-              </button>
-              <button
-                class="button-danger"
-                onClick={handleDiscardAndExit}
-              >
-                {t.discardAndExit}
-              </button>
-              <button
-                class="button-secondary"
-                onClick={handleStay}
-              >
-                {t.stay}
-              </button>
-            </div>
-          </div>
-        </>
+        <Popup
+          title={t.unsavedChanges}
+          message={t.unsavedChangesMessage}
+          buttons={[
+            {
+              label: t.saveAndExit,
+              onClick: handleSaveAndExit,
+              className: 'button-primary',
+            },
+            {
+              label: t.discardAndExit,
+              onClick: handleDiscardAndExit,
+              className: 'button-danger',
+            },
+            {
+              label: t.stay,
+              onClick: handleStay,
+              className: 'button-secondary',
+            },
+          ]}
+          onClose={handleStay}
+          selectedLanguage={selectedLanguage}
+        />
       )}
+      {taskToDelete && (() => {
+        const task = tasks.value.find(t => t.id === taskToDelete);
+        const taskName = task?.name || '';
+        return (
+          <Popup
+            title={`${t.deleteTask} "${taskName}"`}
+            message={t.deleteTaskMessage}
+            buttons={[
+              {
+                label: t.delete,
+                onClick: handleConfirmDelete,
+                className: 'button-danger',
+              },
+              {
+                label: t.keep,
+                onClick: handleCancelDelete,
+                className: 'button-secondary',
+              },
+            ]}
+            onClose={handleCancelDelete}
+            selectedLanguage={selectedLanguage}
+          />
+        );
+      })()}
     </div>
   );
 }

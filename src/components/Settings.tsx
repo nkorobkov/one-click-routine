@@ -13,12 +13,12 @@ interface SettingsProps {
 interface EditingTask {
   id: string;
   name: string;
-  intervalDays: number;
+  intervalDays: number | '';
 }
 
 export function Settings({ selectedLanguage, onBackClick, onLanguageChange }: SettingsProps) {
   const [taskName, setTaskName] = useState('');
-  const [intervalDays, setIntervalDays] = useState(5);
+  const [intervalDays, setIntervalDays] = useState<number | ''>(5);
   const [initialDaysOffset, setInitialDaysOffset] = useState<number | ''>('');
   const [selectedTheme, setSelectedTheme] = useState<ThemeId>(getStoredTheme());
   const [magicLinkCopied, setMagicLinkCopied] = useState(false);
@@ -32,8 +32,9 @@ export function Settings({ selectedLanguage, onBackClick, onLanguageChange }: Se
   const hasUnsavedChanges = Array.from(editingTasks.entries()).some(([taskId, editingTask]) => {
     const originalTask = tasks.value.find(t => t.id === taskId);
     if (!originalTask) return false;
+    const editingDays = typeof editingTask.intervalDays === 'number' ? editingTask.intervalDays : parseInt(String(editingTask.intervalDays)) || 0;
     return editingTask.name.trim() !== originalTask.name.trim() || 
-           editingTask.intervalDays !== originalTask.intervalDays;
+           editingDays !== originalTask.intervalDays;
   });
 
   // Apply theme on mount and when theme changes
@@ -43,9 +44,10 @@ export function Settings({ selectedLanguage, onBackClick, onLanguageChange }: Se
 
   const handleAddTask = (e: Event) => {
     e.preventDefault();
-    if (taskName.trim() && intervalDays > 0) {
+    const days = typeof intervalDays === 'number' ? intervalDays : parseInt(String(intervalDays)) || 0;
+    if (taskName.trim() && days > 0) {
       const offset = initialDaysOffset === '' ? undefined : Number(initialDaysOffset);
-      addTask(taskName.trim(), intervalDays, offset);
+      addTask(taskName.trim(), days, offset);
       setTaskName('');
       setIntervalDays(5);
       setInitialDaysOffset('');
@@ -113,22 +115,34 @@ export function Settings({ selectedLanguage, onBackClick, onLanguageChange }: Se
 
   const handleSaveEdit = (taskId: string) => {
     const editingTask = editingTasks.get(taskId);
-    if (editingTask && editingTask.name.trim() && editingTask.intervalDays > 0) {
-      updateTask(taskId, editingTask.name.trim(), editingTask.intervalDays);
-      const newEditingTasks = new Map(editingTasks);
-      newEditingTasks.delete(taskId);
-      setEditingTasks(newEditingTasks);
+    if (editingTask && editingTask.name.trim()) {
+      const days = typeof editingTask.intervalDays === 'number' ? editingTask.intervalDays : parseInt(String(editingTask.intervalDays)) || 0;
+      if (days > 0) {
+        updateTask(taskId, editingTask.name.trim(), days);
+        const newEditingTasks = new Map(editingTasks);
+        newEditingTasks.delete(taskId);
+        setEditingTasks(newEditingTasks);
+      }
     }
   };
 
-  const handleUpdateEditingTask = (taskId: string, field: 'name' | 'intervalDays', value: string | number) => {
+  const handleUpdateEditingTask = (taskId: string, field: 'name' | 'intervalDays', value: string | number | '') => {
     const editingTask = editingTasks.get(taskId);
     if (editingTask) {
       const newEditingTasks = new Map(editingTasks);
-      newEditingTasks.set(taskId, {
-        ...editingTask,
-        [field]: value,
-      });
+      if (field === 'intervalDays') {
+        // Allow empty string, or parse the number
+        const numValue: number | '' = value === '' ? '' : (typeof value === 'number' ? value : parseInt(String(value)) || '');
+        newEditingTasks.set(taskId, {
+          ...editingTask,
+          intervalDays: numValue,
+        });
+      } else {
+        newEditingTasks.set(taskId, {
+          ...editingTask,
+          name: value as string,
+        });
+      }
       setEditingTasks(newEditingTasks);
     }
   };
@@ -144,8 +158,11 @@ export function Settings({ selectedLanguage, onBackClick, onLanguageChange }: Se
   const handleSaveAndExit = () => {
     // Save all editing tasks
     editingTasks.forEach((editingTask) => {
-      if (editingTask.name.trim() && editingTask.intervalDays > 0) {
-        updateTask(editingTask.id, editingTask.name.trim(), editingTask.intervalDays);
+      if (editingTask.name.trim()) {
+        const days = typeof editingTask.intervalDays === 'number' ? editingTask.intervalDays : parseInt(String(editingTask.intervalDays)) || 0;
+        if (days > 0) {
+          updateTask(editingTask.id, editingTask.name.trim(), days);
+        }
       }
     });
     setEditingTasks(new Map());
@@ -196,7 +213,10 @@ export function Settings({ selectedLanguage, onBackClick, onLanguageChange }: Se
               inputmode="numeric"
               min="1"
               value={intervalDays}
-              onInput={(e) => setIntervalDays(parseInt((e.target as HTMLInputElement).value) || 1)}
+              onInput={(e) => {
+                const val = (e.target as HTMLInputElement).value;
+                setIntervalDays(val === '' ? '' : (parseInt(val) || ''));
+              }}
               required
             />
           </div>
@@ -216,7 +236,13 @@ export function Settings({ selectedLanguage, onBackClick, onLanguageChange }: Se
             />
             <small class="form-hint">{t.daysUntilFirstCompletionHint}</small>
           </div>
-          <button type="submit" class="button-primary">{t.addTask}</button>
+          <button 
+            type="submit" 
+            class="button-primary"
+            disabled={!taskName.trim() || intervalDays === '' || (typeof intervalDays === 'number' && intervalDays <= 0)}
+          >
+            {t.addTask}
+          </button>
         </form>
 
         <div class="task-list">
@@ -246,7 +272,10 @@ export function Settings({ selectedLanguage, onBackClick, onLanguageChange }: Se
                           inputmode="numeric"
                           min="1"
                           value={editingTask.intervalDays}
-                          onInput={(e) => handleUpdateEditingTask(task.id, 'intervalDays', parseInt((e.target as HTMLInputElement).value) || 1)}
+                          onInput={(e) => {
+                            const val = (e.target as HTMLInputElement).value;
+                            handleUpdateEditingTask(task.id, 'intervalDays', val === '' ? '' : (parseInt(val) || ''));
+                          }}
                           class="task-edit-input task-edit-input-number"
                         />
                       </div>
@@ -256,7 +285,7 @@ export function Settings({ selectedLanguage, onBackClick, onLanguageChange }: Se
                         class="button-action button-save"
                         onClick={() => handleSaveEdit(task.id)}
                         aria-label="Save"
-                        disabled={!editingTask.name.trim() || editingTask.intervalDays <= 0}
+                        disabled={!editingTask.name.trim() || editingTask.intervalDays === '' || (typeof editingTask.intervalDays === 'number' && editingTask.intervalDays <= 0)}
                       >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M20 6L9 17l-5-5"/>

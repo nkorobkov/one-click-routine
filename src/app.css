@@ -279,26 +279,9 @@
   transform: scale(0.98);
 }
 
-.button-danger {
+/* Shared styles for action buttons in task items */
+.button-action {
   background-color: transparent;
-  color: var(--danger);
-  padding: 12px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-  min-width: 44px;
-  min-height: 44px;
-}
-
-.button-danger:active {
-  background-color: var(--button-danger-active-bg);
-}
-
-.button-reorder {
-  background-color: transparent;
-  color: var(--text-secondary);
   padding: 8px;
   border-radius: 6px;
   display: flex;
@@ -310,13 +293,25 @@
   border: 1px solid var(--border-color);
 }
 
-.button-reorder:active:not(:disabled) {
+.button-action:active:not(:disabled) {
   background-color: var(--button-hover);
 }
 
-.button-reorder:disabled {
+.button-action:disabled {
   opacity: 0.3;
   cursor: not-allowed;
+}
+
+.button-reorder {
+  color: var(--text-secondary);
+}
+
+.button-danger {
+  color: var(--danger);
+}
+
+.button-danger:active {
+  background-color: var(--button-danger-active-bg);
 }
 
 /* Setup View */
@@ -401,6 +396,59 @@
 .task-item-content p {
   font-size: 14px;
   color: var(--text-secondary);
+}
+
+.task-item-editing {
+  border-color: var(--accent-orange);
+}
+
+.task-item-editing .task-item-content {
+  margin-right: 16px;
+}
+
+.task-edit-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 16px;
+  font-family: inherit;
+  margin-bottom: 8px;
+}
+
+.task-edit-input:focus {
+  outline: none;
+  border-color: var(--accent-green);
+}
+
+.task-edit-input-number {
+  width: 80px;
+  margin-left: 8px;
+}
+
+.task-edit-period {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.task-edit-period label {
+  margin-right: 8px;
+}
+
+.button-edit {
+  color: #ffc107;
+}
+
+.button-save {
+  color: var(--accent-green);
+}
+
+.button-cancel {
+  color: var(--accent-red);
 }
 
 .empty-message {
@@ -612,6 +660,114 @@
   }
 }
 
+
+/* Unsaved Changes Popup */
+.unsaved-changes-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.unsaved-changes-popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+  z-index: 1001;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.unsaved-changes-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.unsaved-changes-popup-header h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.unsaved-changes-close {
+  background-color: transparent;
+  color: var(--text-secondary);
+  padding: 8px;
+  border: none;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 32px;
+  min-height: 32px;
+}
+
+.unsaved-changes-close:active {
+  background-color: var(--button-hover);
+}
+
+.unsaved-changes-message {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.unsaved-changes-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.unsaved-changes-actions .button-secondary {
+  background-color: transparent;
+  color: var(--text-primary);
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.unsaved-changes-actions .button-secondary:active {
+  background-color: var(--button-hover);
+}
+
+.unsaved-changes-actions .button-danger {
+  background-color: transparent;
+  color: var(--danger);
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%;
+}
+
+.unsaved-changes-actions .button-danger:active {
+  background-color: var(--button-danger-active-bg);
+}
 
 /* Responsive adjustments for larger screens */
 @media (min-width: 768px) {

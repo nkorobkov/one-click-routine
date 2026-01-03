@@ -1,12 +1,18 @@
 import { useState, useEffect } from 'preact/hooks';
-import { tasks, addTask, deleteTask, moveTaskUp, moveTaskDown, generateMagicLink } from '../store';
+import { tasks, addTask, deleteTask, moveTaskUp, moveTaskDown, generateMagicLink, updateTask, type Task } from '../store';
 import { themes, type ThemeId, getStoredTheme, saveTheme, applyTheme } from '../themes';
-import { translations, type LanguageId, getStoredLanguage, saveLanguage } from '../i18n';
+import { translations, type LanguageId, saveLanguage } from '../i18n';
 
 interface SettingsProps {
   selectedLanguage: LanguageId;
   onBackClick: () => void;
   onLanguageChange: (language: LanguageId) => void;
+}
+
+interface EditingTask {
+  id: string;
+  name: string;
+  intervalDays: number;
 }
 
 export function Settings({ selectedLanguage, onBackClick, onLanguageChange }: SettingsProps) {
@@ -15,8 +21,18 @@ export function Settings({ selectedLanguage, onBackClick, onLanguageChange }: Se
   const [initialDaysOffset, setInitialDaysOffset] = useState<number | ''>('');
   const [selectedTheme, setSelectedTheme] = useState<ThemeId>(getStoredTheme());
   const [magicLinkCopied, setMagicLinkCopied] = useState(false);
+  const [editingTasks, setEditingTasks] = useState<Map<string, EditingTask>>(new Map());
+  const [showUnsavedChangesPopup, setShowUnsavedChangesPopup] = useState(false);
   
   const t = translations[selectedLanguage];
+  
+  // Check if there are unsaved changes (only if values actually differ from original)
+  const hasUnsavedChanges = Array.from(editingTasks.entries()).some(([taskId, editingTask]) => {
+    const originalTask = tasks.value.find(t => t.id === taskId);
+    if (!originalTask) return false;
+    return editingTask.name.trim() !== originalTask.name.trim() || 
+           editingTask.intervalDays !== originalTask.intervalDays;
+  });
 
   // Apply theme on mount and when theme changes
   useEffect(() => {
@@ -68,10 +84,78 @@ export function Settings({ selectedLanguage, onBackClick, onLanguageChange }: Se
     }
   };
 
+  const handleEditTask = (task: Task) => {
+    const newEditingTasks = new Map(editingTasks);
+    newEditingTasks.set(task.id, {
+      id: task.id,
+      name: task.name,
+      intervalDays: task.intervalDays,
+    });
+    setEditingTasks(newEditingTasks);
+  };
+
+  const handleCancelEdit = (taskId: string) => {
+    const newEditingTasks = new Map(editingTasks);
+    newEditingTasks.delete(taskId);
+    setEditingTasks(newEditingTasks);
+  };
+
+  const handleSaveEdit = (taskId: string) => {
+    const editingTask = editingTasks.get(taskId);
+    if (editingTask && editingTask.name.trim() && editingTask.intervalDays > 0) {
+      updateTask(taskId, editingTask.name.trim(), editingTask.intervalDays);
+      const newEditingTasks = new Map(editingTasks);
+      newEditingTasks.delete(taskId);
+      setEditingTasks(newEditingTasks);
+    }
+  };
+
+  const handleUpdateEditingTask = (taskId: string, field: 'name' | 'intervalDays', value: string | number) => {
+    const editingTask = editingTasks.get(taskId);
+    if (editingTask) {
+      const newEditingTasks = new Map(editingTasks);
+      newEditingTasks.set(taskId, {
+        ...editingTask,
+        [field]: value,
+      });
+      setEditingTasks(newEditingTasks);
+    }
+  };
+
+  const handleBackClick = () => {
+    if (hasUnsavedChanges) {
+      setShowUnsavedChangesPopup(true);
+    } else {
+      onBackClick();
+    }
+  };
+
+  const handleSaveAndExit = () => {
+    // Save all editing tasks
+    editingTasks.forEach((editingTask) => {
+      if (editingTask.name.trim() && editingTask.intervalDays > 0) {
+        updateTask(editingTask.id, editingTask.name.trim(), editingTask.intervalDays);
+      }
+    });
+    setEditingTasks(new Map());
+    setShowUnsavedChangesPopup(false);
+    onBackClick();
+  };
+
+  const handleDiscardAndExit = () => {
+    setEditingTasks(new Map());
+    setShowUnsavedChangesPopup(false);
+    onBackClick();
+  };
+
+  const handleStay = () => {
+    setShowUnsavedChangesPopup(false);
+  };
+
   return (
     <div class="app">
       <header class="header">
-        <button class="icon-button" onClick={onBackClick} aria-label={t.back}>
+        <button class="icon-button" onClick={handleBackClick} aria-label={t.back}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M19 12H5M12 19l-7-7 7-7"/>
           </svg>
@@ -129,45 +213,109 @@ export function Settings({ selectedLanguage, onBackClick, onLanguageChange }: Se
           {tasks.value.length === 0 ? (
             <p class="empty-message">{t.noTasksConfigured}</p>
           ) : (
-            tasks.value.map((task, index) => (
-              <div key={task.id} class="task-item">
-                <div class="task-item-content">
-                  <h3>{task.name}</h3>
-                  <p>{t.everyDays(task.intervalDays)}</p>
+            tasks.value.map((task, index) => {
+              const isEditing = editingTasks.has(task.id);
+              const editingTask = editingTasks.get(task.id);
+              
+              if (isEditing && editingTask) {
+                return (
+                  <div key={task.id} class="task-item task-item-editing">
+                    <div class="task-item-content">
+                      <input
+                        type="text"
+                        value={editingTask.name}
+                        onInput={(e) => handleUpdateEditingTask(task.id, 'name', (e.target as HTMLInputElement).value)}
+                        class="task-edit-input"
+                        placeholder={t.taskNamePlaceholder}
+                      />
+                      <div class="task-edit-period">
+                        <label>{t.frequencyDays}:</label>
+                        <input
+                          type="number"
+                          inputmode="numeric"
+                          min="1"
+                          value={editingTask.intervalDays}
+                          onInput={(e) => handleUpdateEditingTask(task.id, 'intervalDays', parseInt((e.target as HTMLInputElement).value) || 1)}
+                          class="task-edit-input task-edit-input-number"
+                        />
+                      </div>
+                    </div>
+                    <div class="task-item-actions">
+                      <button
+                        class="button-action button-save"
+                        onClick={() => handleSaveEdit(task.id)}
+                        aria-label="Save"
+                        disabled={!editingTask.name.trim() || editingTask.intervalDays <= 0}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M20 6L9 17l-5-5"/>
+                        </svg>
+                      </button>
+                      <button
+                        class="button-action button-cancel"
+                        onClick={() => handleCancelEdit(task.id)}
+                        aria-label="Cancel"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <line x1="18" y1="6" x2="6" y2="18"/>
+                          <line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
+              
+              return (
+                <div key={task.id} class="task-item">
+                  <div class="task-item-content">
+                    <h3>{task.name}</h3>
+                    <p>{t.everyDays(task.intervalDays)}</p>
+                  </div>
+                  <div class="task-item-actions">
+                    <button
+                      class="button-action button-reorder"
+                      onClick={() => moveTaskUp(task.id)}
+                      disabled={index === 0}
+                      aria-label="Move up"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M18 15l-6-6-6 6"/>
+                      </svg>
+                    </button>
+                    <button
+                      class="button-action button-reorder"
+                      onClick={() => moveTaskDown(task.id)}
+                      disabled={index === tasks.value.length - 1}
+                      aria-label="Move down"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M6 9l6 6 6-6"/>
+                      </svg>
+                    </button>
+                    <button
+                      class="button-action button-edit"
+                      onClick={() => handleEditTask(task)}
+                      aria-label={t.editTask}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                      </svg>
+                    </button>
+                    <button
+                      class="button-action button-danger"
+                      onClick={() => handleDeleteTask(task.id)}
+                      aria-label={t.deleteTask}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                      </svg>
+                    </button>
+                  </div>
                 </div>
-                <div class="task-item-actions">
-                  <button
-                    class="button-reorder"
-                    onClick={() => moveTaskUp(task.id)}
-                    disabled={index === 0}
-                    aria-label="Move up"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M18 15l-6-6-6 6"/>
-                    </svg>
-                  </button>
-                  <button
-                    class="button-reorder"
-                    onClick={() => moveTaskDown(task.id)}
-                    disabled={index === tasks.value.length - 1}
-                    aria-label="Move down"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M6 9l6 6 6-6"/>
-                    </svg>
-                  </button>
-                  <button
-                    class="button-danger"
-                    onClick={() => handleDeleteTask(task.id)}
-                    aria-label={t.deleteTask}
-                  >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
         <div class="settings-section">
@@ -237,6 +385,50 @@ export function Settings({ selectedLanguage, onBackClick, onLanguageChange }: Se
           </div>
         </div>
       </main>
+      {showUnsavedChangesPopup && (
+        <>
+          <div
+            class="unsaved-changes-backdrop"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <div class="unsaved-changes-popup">
+            <div class="unsaved-changes-popup-header">
+              <h2>{t.unsavedChanges}</h2>
+              <button
+                class="unsaved-changes-close"
+                onClick={handleStay}
+                aria-label={t.stay}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <p class="unsaved-changes-message">{t.unsavedChangesMessage}</p>
+            <div class="unsaved-changes-actions">
+              <button
+                class="button-primary"
+                onClick={handleSaveAndExit}
+              >
+                {t.saveAndExit}
+              </button>
+              <button
+                class="button-danger"
+                onClick={handleDiscardAndExit}
+              >
+                {t.discardAndExit}
+              </button>
+              <button
+                class="button-secondary"
+                onClick={handleStay}
+              >
+                {t.stay}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -225,6 +225,15 @@ export function adjustTaskTime(id: string, daysDelta: number) {
   saveTasks(updated);
 }
 
+// Update task name and intervalDays without changing lastCompleted
+export function updateTask(id: string, name: string, intervalDays: number) {
+  const updated = tasks.value.map((t) =>
+    t.id === id ? { ...t, name: name.trim(), intervalDays } : t
+  );
+  tasks.value = updated;
+  saveTasks(updated);
+}
+
 // Check if day has changed (for midnight update)
 export function checkDayChange() {
   debug('checkDayChange');

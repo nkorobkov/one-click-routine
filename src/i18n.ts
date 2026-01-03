@@ -54,6 +54,14 @@ export interface Translations {
   copyLink: string;
   linkCopied: string;
   noTasksToShare: string;
+  
+  // Edit task
+  editTask: string;
+  unsavedChanges: string;
+  unsavedChangesMessage: string;
+  saveAndExit: string;
+  discardAndExit: string;
+  stay: string;
 }
 
 export const translations: Record<LanguageId, Translations> = {
@@ -128,6 +136,12 @@ export const translations: Record<LanguageId, Translations> = {
     copyLink: 'Copy',
     linkCopied: 'Copied!',
     noTasksToShare: 'Add tasks to generate a share link',
+    editTask: 'Edit task',
+    unsavedChanges: 'Unsaved Changes',
+    unsavedChangesMessage: 'You have unsaved changes. What would you like to do?',
+    saveAndExit: 'Save and Exit',
+    discardAndExit: 'Discard and Exit',
+    stay: 'Stay',
   },
   ru: {
     timeFormat: (hours, minutes) => {
@@ -210,6 +224,12 @@ export const translations: Record<LanguageId, Translations> = {
     copyLink: 'Копировать',
     linkCopied: 'Скопировано!',
     noTasksToShare: 'Добавьте рутины, чтобы создать ссылку для обмена',
+    editTask: 'Редактировать рутину',
+    unsavedChanges: 'Несохранённые изменения',
+    unsavedChangesMessage: 'У вас есть несохранённые изменения. Что вы хотите сделать?',
+    saveAndExit: 'Сохранить и выйти',
+    discardAndExit: 'Отменить и выйти',
+    stay: 'Остаться',
   },
 };
 

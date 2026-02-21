@@ -135,11 +135,11 @@ export function Dashboard({ selectedLanguage, onSettingsClick }: DashboardProps)
       handleUndoDismiss();
     }
     
-    // Store previous lastCompleted before completing
+    // Store previous nextDueDate before completing
     const task = tasks.value.find((t) => t.id === id);
     if (!task) return;
     
-    const previousTime = task.lastCompleted;
+    const previousTime = task.nextDueDate;
     
     // Complete the task
     completeTask(id);
@@ -167,9 +167,9 @@ export function Dashboard({ selectedLanguage, onSettingsClick }: DashboardProps)
     if (undoTaskId && undoPreviousTime !== null && undoTimeout !== null) {
       clearTimeout(undoTimeout);
       
-      // Revert the completion by restoring previous lastCompleted
+      // Revert the completion by restoring previous nextDueDate
       const updated = tasks.value.map((t) =>
-        t.id === undoTaskId ? { ...t, lastCompleted: undoPreviousTime } : t
+        t.id === undoTaskId ? { ...t, nextDueDate: undoPreviousTime } : t
       );
       tasks.value = updated;
       

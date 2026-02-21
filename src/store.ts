@@ -4,11 +4,10 @@ export interface Task {
   id: string;
   name: string;
   intervalDays: number;
-  lastCompleted: number; // Timestamp
+  nextDueDate: number; // Timestamp for when task is next due
 }
 
 const STORAGE_KEY = 'one-click-routine-tasks';
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 export const debug = (...args: string[]) => {
   if (import.meta.env.DEV) {
@@ -37,12 +36,36 @@ function generateShortId(): string {
 
 
 // Load tasks from localStorage on initialization
+// Migrates legacy tasks with lastCompleted to new format with nextDueDate
 function loadTasks(): Task[] {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const tasks = JSON.parse(stored);
-      return tasks
+      // Migrate legacy tasks that have lastCompleted instead of nextDueDate
+      return tasks.map((task: any) => {
+        if (task.nextDueDate !== undefined) {
+          // Already in new format
+          return task;
+        } else if (task.lastCompleted !== undefined) {
+          // Legacy format: convert lastCompleted to nextDueDate
+          // Calculate: nextDueDate = lastCompleted + intervalDays
+          const lastCompletedDate = new Date(task.lastCompleted);
+          lastCompletedDate.setHours(0, 0, 0, 0);
+          const dueDate = new Date(lastCompletedDate);
+          dueDate.setDate(lastCompletedDate.getDate() + task.intervalDays);
+          return {
+            ...task,
+            nextDueDate: dueDate.getTime(),
+          };
+        } else {
+          // Fallback: calculate from now
+          return {
+            ...task,
+            nextDueDate: calculateNextDueDate(task.intervalDays),
+          };
+        }
+      });
     }
   } catch (e) {
     console.error('Failed to load tasks from localStorage:', e);
@@ -99,33 +122,29 @@ function daysBetween(date1: string, date2: string): number {
 // Helper: Calculate days remaining for a task based on calendar days
 export function getDaysRemaining(task: Task): number {
   const today = getDateString();
-  const lastCompletedDate = timestampToDateString(task.lastCompleted);
+  const nextDueDateStr = timestampToDateString(task.nextDueDate);
   
-  // Simple calculation: days elapsed since last completion
-  const daysElapsed = daysBetween(lastCompletedDate, today);
-  const daysRemaining = task.intervalDays - daysElapsed;
+  // Calculate days between today and next due date
+  const daysRemaining = daysBetween(today, nextDueDateStr);
   
   return daysRemaining;
 }
 
 // Helper: Get the due date for a task
 export function getDueDate(task: Task): Date {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  
-  const daysRemaining = getDaysRemaining(task);
-  
-  // Calculate due date by adding days remaining
-  const dueDate = new Date(today);
-  dueDate.setDate(today.getDate() + daysRemaining);
+  // nextDueDate is already a timestamp, just convert to Date
+  const dueDate = new Date(task.nextDueDate);
+  dueDate.setHours(0, 0, 0, 0);
   return dueDate;
 }
 
 // Helper: Calculate days overdue for a task (language-agnostic)
 export function getDaysOverdue(task: Task): number {
   const today = getDateString();
-  const lastCompletedDate = timestampToDateString(task.lastCompleted);
-  return daysBetween(lastCompletedDate, today) - task.intervalDays;
+  const nextDueDateStr = timestampToDateString(task.nextDueDate);
+  // If today is past the due date, return the difference
+  const daysOverdue = daysBetween(nextDueDateStr, today);
+  return daysOverdue > 0 ? daysOverdue : 0;
 }
 
 // Helper: Format due date as "Wednesday Dec 3"
@@ -142,33 +161,31 @@ export function formatDueDate(task: Task): string {
 }
 
 
+// Helper: Calculate next due date timestamp
+function calculateNextDueDate(intervalDays: number, initialDaysOffset?: number): number {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  // If initialDaysOffset is provided, calculate due date in that many days
+  // Otherwise, due date is intervalDays from now
+  const daysUntilDue = initialDaysOffset !== undefined ? initialDaysOffset : intervalDays;
+  
+  const nextDueDate = new Date(today);
+  nextDueDate.setDate(today.getDate() + daysUntilDue);
+  nextDueDate.setHours(0, 0, 0, 0);
+  
+  return nextDueDate.getTime();
+}
+
 // Actions
 export function addTask(name: string, intervalDays: number, initialDaysOffset?: number) {
-  const now = Date.now();
-  
-  // Calculate lastCompleted timestamp
-  // If initialDaysOffset is provided, set lastCompleted in the past
-  // so that the normal calculation gives the correct due date
-  // Example: intervalDays=5, initialDaysOffset=3
-  //   We want first completion in 3 days
-  //   Set lastCompleted to (now - (5 - 3) * 24 * 60 * 60 * 1000)
-  //   = now - 2 days ago
-  //   Then: daysElapsed = 2, daysRemaining = 5 - 2 = 3 ✓
-  let lastCompleted: number;
-  if (initialDaysOffset !== undefined && initialDaysOffset !== intervalDays) {
-    const daysToSubtract = intervalDays - initialDaysOffset;
-    const msToSubtract = daysToSubtract * 24 * 60 * 60 * 1000;
-    lastCompleted = now - msToSubtract;
-  } else {
-    // Default: set to now (task is due immediately or after full interval)
-    lastCompleted = now;
-  }
+  const nextDueDate = calculateNextDueDate(intervalDays, initialDaysOffset);
   
   const newTask: Task = {
     id: generateShortId(),
     name,
     intervalDays,
-    lastCompleted,
+    nextDueDate,
   };
   const updated = [...tasks.value, newTask];
   tasks.value = updated;
@@ -202,9 +219,19 @@ export function moveTaskDown(id: string) {
 }
 
 export function completeTask(id: string) {
-  const updated = tasks.value.map((t) =>
-    t.id === id ? { ...t, lastCompleted: Date.now() } : t
-  );
+  const updated = tasks.value.map((t) => {
+    if (t.id === id) {
+      // Calculate new nextDueDate = today + intervalDays (from completion day, not previous due date)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const newDueDate = new Date(today);
+      newDueDate.setDate(today.getDate() + t.intervalDays);
+      
+      return { ...t, nextDueDate: newDueDate.getTime() };
+    }
+    return t;
+  });
   tasks.value = updated;
   saveTasks(updated);
 }
@@ -213,11 +240,14 @@ export function completeTask(id: string) {
 export function adjustTaskTime(id: string, daysDelta: number) {
   const updated = tasks.value.map((t) => {
     if (t.id === id) {
-      // Add/subtract days by modifying lastCompleted timestamp
-      // To add one day to the remaining period, we need to move lastcompleted forward.
-      const msPerDay = MS_PER_DAY;
-      const newLastCompleted = t.lastCompleted + (daysDelta * msPerDay);
-      return { ...t, lastCompleted: newLastCompleted };
+      // Add/subtract days by modifying nextDueDate directly
+      const currentDueDate = new Date(t.nextDueDate);
+      currentDueDate.setHours(0, 0, 0, 0);
+      
+      const newDueDate = new Date(currentDueDate);
+      newDueDate.setDate(currentDueDate.getDate() + daysDelta);
+      
+      return { ...t, nextDueDate: newDueDate.getTime() };
     }
     return t;
   });
@@ -225,11 +255,41 @@ export function adjustTaskTime(id: string, daysDelta: number) {
   saveTasks(updated);
 }
 
-// Update task name and intervalDays without changing lastCompleted
+// Update task name and intervalDays
+// When intervalDays changes, recalculate nextDueDate proportionally as if task was completed
+// with the new period. Example: 5 days until due with period 30, change to period 35 = 10 days until due
 export function updateTask(id: string, name: string, intervalDays: number) {
-  const updated = tasks.value.map((t) =>
-    t.id === id ? { ...t, name: name.trim(), intervalDays } : t
-  );
+  const updated = tasks.value.map((t) => {
+    if (t.id === id) {
+      // If intervalDays changed, recalculate nextDueDate proportionally
+      if (t.intervalDays !== intervalDays) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const currentDueDate = new Date(t.nextDueDate);
+        currentDueDate.setHours(0, 0, 0, 0);
+        
+        // Calculate days remaining until current due date
+        const daysRemaining = Math.floor((currentDueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        
+        // Calculate how many days have elapsed since "last completion"
+        // (oldIntervalDays - daysRemaining = daysElapsed)
+        const daysElapsed = t.intervalDays - daysRemaining;
+        
+        // Calculate new days remaining with new period
+        // (newIntervalDays - daysElapsed = newDaysRemaining)
+        const newDaysRemaining = intervalDays - daysElapsed;
+        
+        // Calculate new due date from today
+        const newDueDate = new Date(today);
+        newDueDate.setDate(today.getDate() + newDaysRemaining);
+        
+        return { ...t, name: name.trim(), intervalDays, nextDueDate: newDueDate.getTime() };
+      }
+      return { ...t, name: name.trim(), intervalDays };
+    }
+    return t;
+  });
   tasks.value = updated;
   saveTasks(updated);
 }
@@ -252,7 +312,9 @@ interface ShareableTask {
   id: string;
   n: string;
   i: number;
-  lc: number;
+  nd: number; // nextDueDate
+  // Legacy support: lc (lastCompleted) for backward compatibility
+  lc?: number;
 }
 
 // Unicode-safe base64 encoding (handles emojis and all Unicode characters)
@@ -310,7 +372,7 @@ export function generateMagicLink(): string {
     id: task.id,
     n: task.name,
     i: task.intervalDays,
-    lc: task.lastCompleted,
+    nd: task.nextDueDate,
   }));
   
   const json = JSON.stringify(shareableTasks);
@@ -336,12 +398,32 @@ export function importTasksFromLink(encodedTasks: string): boolean {
     // Merge with existing tasks, dedupe by ID
     const existingIds = new Set(tasks.value.map(t => t.id));
     const tasksToAdd = importedTasks.filter(t => !existingIds.has(t.id)).map(
-      (t) => ({
-        id: t.id,
-        name: t.n,
-        intervalDays: t.i,
-        lastCompleted: t.lc,
-      })
+      (t) => {
+        // Support both new format (nd) and legacy format (lc)
+        let nextDueDate: number;
+        if (t.nd !== undefined) {
+          // New format: use nextDueDate directly
+          nextDueDate = t.nd;
+        } else if (t.lc !== undefined) {
+          // Legacy format: convert lastCompleted to nextDueDate
+          // Calculate: nextDueDate = lastCompleted + intervalDays
+          const lastCompletedDate = new Date(t.lc);
+          lastCompletedDate.setHours(0, 0, 0, 0);
+          const dueDate = new Date(lastCompletedDate);
+          dueDate.setDate(lastCompletedDate.getDate() + t.i);
+          nextDueDate = dueDate.getTime();
+        } else {
+          // Fallback: calculate from now
+          nextDueDate = calculateNextDueDate(t.i);
+        }
+        
+        return {
+          id: t.id,
+          name: t.n,
+          intervalDays: t.i,
+          nextDueDate,
+        };
+      }
     );
     
     if (tasksToAdd.length > 0) {

@@ -72,6 +72,52 @@ export async function getCurrentUser(): Promise<User | null> {
   return userData;
 }
 
+// User settings type for Supabase storage
+export interface UserSettings {
+  language?: string;
+  theme?: string;
+}
+
+// Load settings from Supabase for the current user
+export async function loadUserSettings(): Promise<UserSettings | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data, error } = await supabase
+    .from('user_settings')
+    .select('settings')
+    .eq('id', user.id)
+    .single();
+
+  if (error) {
+    // PGRST116 = no rows returned, normal for new users
+    if (error.code !== 'PGRST116') {
+      console.error('Error loading user settings:', error);
+    }
+    return null;
+  }
+
+  return data?.settings as UserSettings || null;
+}
+
+// Save settings to Supabase for the current user (upsert)
+export async function saveUserSettings(settings: UserSettings): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const { error } = await supabase
+    .from('user_settings')
+    .upsert({
+      id: user.id,
+      settings,
+      updated_at: new Date().toISOString(),
+    });
+
+  if (error) {
+    console.error('Error saving user settings:', error);
+  }
+}
+
 // Listen to auth state changes
 export function onAuthStateChange(callback: (user: User | null) => void) {
   const { data } = supabase.auth.onAuthStateChange(async (_event, session) => {

@@ -1,14 +1,14 @@
-import { useState, useEffect, useRef } from 'preact/hooks';
+import { useState } from 'preact/hooks';
 import { tasks, addTask, deleteTask, moveTaskUp, moveTaskDown, generateMagicLink, updateTask, type Task } from '../store';
-import { themes, type ThemeId, getStoredTheme, saveTheme, applyTheme } from '../themes';
-import { translations, type LanguageId, saveLanguage } from '../i18n';
+import { translations, type LanguageId } from '../i18n';
 import { Popup } from './Popup';
-import { signInWithGoogle, signOut, getCurrentUser, onAuthStateChange, type User } from '../lib/supabase';
+import { Header, type View } from './Header';
 
-interface SettingsProps {
+interface AddTaskScreenProps {
   selectedLanguage: LanguageId;
-  onBackClick: () => void;
+  onNavigate: (view: View) => void;
   onLanguageChange: (language: LanguageId) => void;
+  onUserLogin?: () => void;
 }
 
 interface EditingTask {
@@ -17,86 +17,26 @@ interface EditingTask {
   intervalDays: number | '';
 }
 
-export function Settings({ selectedLanguage, onBackClick, onLanguageChange }: SettingsProps) {
+export function AddTaskScreen({ selectedLanguage, onNavigate, onUserLogin }: AddTaskScreenProps) {
   const [taskName, setTaskName] = useState('');
   const [intervalDays, setIntervalDays] = useState<number | ''>(5);
   const [initialDaysOffset, setInitialDaysOffset] = useState<number | ''>('');
-  const [selectedTheme, setSelectedTheme] = useState<ThemeId>(getStoredTheme());
   const [magicLinkCopied, setMagicLinkCopied] = useState(false);
   const [editingTasks, setEditingTasks] = useState<Map<string, EditingTask>>(new Map());
   const [showUnsavedChangesPopup, setShowUnsavedChangesPopup] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
-  const [showUserDropdown, setShowUserDropdown] = useState(false);
-  const userDropdownRef = useRef<HTMLDivElement>(null);
-  
+  const [pendingNavigation, setPendingNavigation] = useState<View | null>(null);
+
   const t = translations[selectedLanguage];
-  
+
   // Check if there are unsaved changes (only if values actually differ from original)
   const hasUnsavedChanges = Array.from(editingTasks.entries()).some(([taskId, editingTask]) => {
     const originalTask = tasks.value.find(t => t.id === taskId);
     if (!originalTask) return false;
     const editingDays = typeof editingTask.intervalDays === 'number' ? editingTask.intervalDays : parseInt(String(editingTask.intervalDays)) || 0;
-    return editingTask.name.trim() !== originalTask.name.trim() || 
+    return editingTask.name.trim() !== originalTask.name.trim() ||
            editingDays !== originalTask.intervalDays;
   });
-
-  // Apply theme on mount and when theme changes
-  useEffect(() => {
-    applyTheme(selectedTheme);
-  }, [selectedTheme]);
-
-  // Initialize auth state and listen for changes
-  useEffect(() => {
-    // Get initial user
-    getCurrentUser().then((user) => {
-      setUser(user);
-      setIsLoadingAuth(false);
-    });
-
-    // Listen for auth state changes
-    const subscription = onAuthStateChange((user) => {
-      setUser(user);
-      setIsLoadingAuth(false);
-    });
-
-    // Handle OAuth callback
-    const handleAuthCallback = async () => {
-      const hashParams = new URLSearchParams(window.location.hash.substring(1));
-      if (hashParams.get('access_token')) {
-        // OAuth callback - get user after redirect
-        const user = await getCurrentUser();
-        setUser(user);
-        setIsLoadingAuth(false);
-        // Clean up URL
-        window.history.replaceState({}, '', window.location.pathname);
-      }
-    };
-
-    handleAuthCallback();
-
-    return () => {
-      subscription.subscription.unsubscribe();
-    };
-  }, []);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (userDropdownRef.current && !userDropdownRef.current.contains(event.target as Node)) {
-        setShowUserDropdown(false);
-      }
-    };
-
-    if (showUserDropdown) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showUserDropdown]);
 
   const handleAddTask = (e: Event) => {
     e.preventDefault();
@@ -134,7 +74,6 @@ export function Settings({ selectedLanguage, onBackClick, onLanguageChange }: Se
         setTimeout(() => setMagicLinkCopied(false), 2000);
       } catch (e) {
         console.error('Failed to copy link:', e);
-        // Fallback: select the text
         const textArea = document.createElement('textarea');
         textArea.value = link;
         textArea.style.position = 'fixed';
@@ -187,7 +126,6 @@ export function Settings({ selectedLanguage, onBackClick, onLanguageChange }: Se
     if (editingTask) {
       const newEditingTasks = new Map(editingTasks);
       if (field === 'intervalDays') {
-        // Allow empty string, or parse the number
         const numValue: number | '' = value === '' ? '' : (typeof value === 'number' ? value : parseInt(String(value)) || '');
         newEditingTasks.set(taskId, {
           ...editingTask,
@@ -203,16 +141,16 @@ export function Settings({ selectedLanguage, onBackClick, onLanguageChange }: Se
     }
   };
 
-  const handleBackClick = () => {
+  const handleNavigateWithCheck = (view: View) => {
     if (hasUnsavedChanges) {
+      setPendingNavigation(view);
       setShowUnsavedChangesPopup(true);
     } else {
-      onBackClick();
+      onNavigate(view);
     }
   };
 
   const handleSaveAndExit = () => {
-    // Save all editing tasks
     editingTasks.forEach((editingTask) => {
       if (editingTask.name.trim()) {
         const days = typeof editingTask.intervalDays === 'number' ? editingTask.intervalDays : parseInt(String(editingTask.intervalDays)) || 0;
@@ -223,99 +161,34 @@ export function Settings({ selectedLanguage, onBackClick, onLanguageChange }: Se
     });
     setEditingTasks(new Map());
     setShowUnsavedChangesPopup(false);
-    onBackClick();
+    if (pendingNavigation) {
+      onNavigate(pendingNavigation);
+      setPendingNavigation(null);
+    }
   };
 
   const handleDiscardAndExit = () => {
     setEditingTasks(new Map());
     setShowUnsavedChangesPopup(false);
-    onBackClick();
+    if (pendingNavigation) {
+      onNavigate(pendingNavigation);
+      setPendingNavigation(null);
+    }
   };
 
   const handleStay = () => {
     setShowUnsavedChangesPopup(false);
-  };
-
-  const handleLogin = async () => {
-    try {
-      setIsLoadingAuth(true);
-      await signInWithGoogle();
-    } catch (error) {
-      console.error('Login failed:', error);
-      setIsLoadingAuth(false);
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await signOut();
-      setUser(null);
-      setShowUserDropdown(false);
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
-  };
-
-  const getInitials = (name: string): string => {
-    return name
-      .split(' ')
-      .map(word => word[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
-  const toggleUserDropdown = () => {
-    setShowUserDropdown(!showUserDropdown);
+    setPendingNavigation(null);
   };
 
   return (
     <div class="app">
-      <header class="settings-header">
-        <div class="settings-header-left">
-          <button class="show-dashboard-button" onClick={handleBackClick} aria-label="Show Dashboard">
-            Show Dashboard
-          </button>
-        </div>
-        <div class="settings-header-center">
-          <h1>One-Click Routine</h1>
-        </div>
-        <div class="settings-header-right">
-          {user ? (
-            <div class="user-avatar-container" ref={userDropdownRef}>
-              <button 
-                class="user-avatar-button" 
-                onClick={toggleUserDropdown}
-                aria-label="User menu"
-              >
-                {user.avatar_url ? (
-                  <img src={user.avatar_url} alt={user.name} class="user-avatar-image" />
-                ) : (
-                  <div class="user-avatar-initials">{getInitials(user.name || 'User')}</div>
-                )}
-              </button>
-              {showUserDropdown && (
-                <div class="user-dropdown">
-                  <div class="user-dropdown-name">{user.name}</div>
-                  <div class="user-dropdown-divider"></div>
-                  <div class="user-dropdown-logout" onClick={handleLogout}>
-                    Logout
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <button 
-              class="login-button" 
-              onClick={handleLogin} 
-              disabled={isLoadingAuth}
-              aria-label="Login with Google"
-            >
-              {isLoadingAuth ? 'Loading...' : 'Login with Google'}
-            </button>
-          )}
-        </div>
-      </header>
+      <Header
+        currentView="addTask"
+        onNavigate={(view) => handleNavigateWithCheck(view)}
+        onDashboardClick={() => handleNavigateWithCheck('dashboard')}
+        onUserLogin={onUserLogin}
+      />
       <main class="setup">
         <form class="task-form" onSubmit={handleAddTask}>
           <h2>{t.addNewTask}</h2>
@@ -361,8 +234,8 @@ export function Settings({ selectedLanguage, onBackClick, onLanguageChange }: Se
             />
             <small class="form-hint">{t.daysUntilFirstCompletionHint}</small>
           </div>
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             class="button-primary"
             disabled={!taskName.trim() || intervalDays === '' || (typeof intervalDays === 'number' && intervalDays <= 0)}
           >
@@ -378,7 +251,7 @@ export function Settings({ selectedLanguage, onBackClick, onLanguageChange }: Se
             tasks.value.map((task, index) => {
               const isEditing = editingTasks.has(task.id);
               const editingTask = editingTasks.get(task.id);
-              
+
               if (isEditing && editingTask) {
                 return (
                   <div key={task.id} class="task-item task-item-editing">
@@ -430,7 +303,7 @@ export function Settings({ selectedLanguage, onBackClick, onLanguageChange }: Se
                   </div>
                 );
               }
-              
+
               return (
                 <div key={task.id} class="task-item">
                   <div class="task-item-content">
@@ -511,44 +384,6 @@ export function Settings({ selectedLanguage, onBackClick, onLanguageChange }: Se
             </div>
           )}
         </div>
-        <div class="settings-section">
-          <h2>{t.theme}</h2>
-          <div class="form-group">
-            <label for="language-select">{t.language}</label>
-            <select
-              id="language-select"
-              value={selectedLanguage}
-              onChange={(e) => {
-                const newLanguage = (e.target as HTMLSelectElement).value as LanguageId;
-                saveLanguage(newLanguage);
-                onLanguageChange(newLanguage);
-              }}
-              class="theme-select"
-            >
-              <option value="en">{t.languageEnglish}</option>
-              <option value="ru">{t.languageRussian}</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="theme-select">{t.colorTheme}</label>
-            <select
-              id="theme-select"
-              value={selectedTheme}
-              onChange={(e) => {
-                const newTheme = (e.target as HTMLSelectElement).value as ThemeId;
-                setSelectedTheme(newTheme);
-                saveTheme(newTheme);
-              }}
-              class="theme-select"
-            >
-              {Object.values(themes).map((theme) => (
-                <option key={theme.id} value={theme.id}>
-                  {theme.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
       </main>
       {showUnsavedChangesPopup && (
         <Popup
@@ -602,4 +437,3 @@ export function Settings({ selectedLanguage, onBackClick, onLanguageChange }: Se
     </div>
   );
 }
-

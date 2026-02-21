@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'preact/hooks';
 import { importTasksFromLink } from './store';
-import { type LanguageId, getStoredLanguage } from './i18n';
-import { getStoredTheme, applyTheme } from './themes';
+import { type LanguageId, getStoredLanguage, saveLanguage } from './i18n';
+import { type ThemeId, getStoredTheme, applyTheme, saveTheme } from './themes';
+import { loadUserSettings } from './lib/supabase';
 import { Dashboard } from './components/Dashboard';
-import { Settings } from './components/Settings';
+import { AddTaskScreen } from './components/AddTaskScreen';
+import { SettingsPage } from './components/SettingsPage';
+import type { View } from './components/Header';
 import './app.css';
-
-type View = 'dashboard' | 'setup';
 
 export function App() {
   const [view, setView] = useState<View>('dashboard');
@@ -19,7 +20,6 @@ export function App() {
     if (tasksParam) {
       const imported = importTasksFromLink(tasksParam);
       if (imported) {
-        // Remove the query parameter from URL after importing
         const newUrl = window.location.pathname;
         window.history.replaceState({}, '', newUrl);
       }
@@ -35,20 +35,51 @@ export function App() {
     setSelectedLanguage(language);
   };
 
+  const handleNavigate = (newView: View) => {
+    setView(newView);
+  };
+
+  // On login, load settings from Supabase and apply them
+  const handleUserLogin = async () => {
+    const settings = await loadUserSettings();
+    if (settings) {
+      if (settings.language) {
+        saveLanguage(settings.language as LanguageId);
+        setSelectedLanguage(settings.language as LanguageId);
+      }
+      if (settings.theme) {
+        saveTheme(settings.theme as ThemeId);
+        applyTheme(settings.theme as ThemeId);
+      }
+    }
+  };
+
   if (view === 'dashboard') {
     return (
       <Dashboard
         selectedLanguage={selectedLanguage}
-        onSettingsClick={() => setView('setup')}
+        onSettingsClick={() => setView('addTask')}
+      />
+    );
+  }
+
+  if (view === 'addTask') {
+    return (
+      <AddTaskScreen
+        selectedLanguage={selectedLanguage}
+        onNavigate={handleNavigate}
+        onLanguageChange={handleLanguageChange}
+        onUserLogin={handleUserLogin}
       />
     );
   }
 
   return (
-    <Settings
+    <SettingsPage
       selectedLanguage={selectedLanguage}
-      onBackClick={() => setView('dashboard')}
+      onNavigate={handleNavigate}
       onLanguageChange={handleLanguageChange}
+      onUserLogin={handleUserLogin}
     />
   );
 }

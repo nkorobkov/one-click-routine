@@ -1,5 +1,6 @@
 import { render } from 'preact'
 import './index.css'
+import './tailwind.css'
 import { App } from './app.tsx'
 import { getStoredTheme, applyTheme } from './themes'
 

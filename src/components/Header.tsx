@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'preact/hooks';
 import { signInWithGoogle, signOut, getCurrentUser, onAuthStateChange, type User } from '../lib/supabase';
+import { getCachedUser, getOrInitUserCache, setCachedUser, clearCachedUser, isUserCacheInitialized } from '../lib/userCache';
 
 export type View = 'dashboard' | 'addTask' | 'settings';
 
@@ -11,19 +12,26 @@ interface HeaderProps {
 }
 
 export function Header({ currentView, onNavigate, onDashboardClick, onUserLogin }: HeaderProps) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+  // Initialize from cache if available - this prevents loading state on navigation
+  const cachedUser = getCachedUser();
+  const [user, setUser] = useState<User | null>(cachedUser);
+  // Only show loading if cache hasn't been initialized yet
+  const [isLoadingAuth, setIsLoadingAuth] = useState(!isUserCacheInitialized());
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const userDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    getCurrentUser().then((u) => {
+    // Use cache to get or initialize user - this ensures we don't refetch on every mount
+    getOrInitUserCache(getCurrentUser).then((u) => {
       setUser(u);
       setIsLoadingAuth(false);
     });
 
     const subscription = onAuthStateChange((u) => {
-      const wasLoggedOut = !user;
+      // Check if user was previously logged out by checking cached user
+      const wasLoggedOut = !getCachedUser();
+      // Update cache when auth state changes
+      setCachedUser(u);
       setUser(u);
       setIsLoadingAuth(false);
       if (u && wasLoggedOut && onUserLogin) {
@@ -35,6 +43,8 @@ export function Header({ currentView, onNavigate, onDashboardClick, onUserLogin 
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
       if (hashParams.get('access_token')) {
         const u = await getCurrentUser();
+        // Update cache after OAuth callback
+        setCachedUser(u);
         setUser(u);
         setIsLoadingAuth(false);
         window.history.replaceState({}, '', window.location.pathname);
@@ -80,6 +90,8 @@ export function Header({ currentView, onNavigate, onDashboardClick, onUserLogin 
   const handleLogout = async () => {
     try {
       await signOut();
+      // Clear cache on logout
+      clearCachedUser();
       setUser(null);
       setShowUserDropdown(false);
     } catch (error) {

@@ -49,15 +49,7 @@ export interface Translations {
   
   // Overdue formatting
   formatOverdueTime: (daysOverdue: number) => string;
-  
-  // Share tasks
-  shareTasks: string;
-  shareLinkDescription: string;
-  shareLinkHint: string;
-  copyLink: string;
-  linkCopied: string;
-  noTasksToShare: string;
-  
+
   // Edit task
   editTask: string;
   unsavedChanges: string;
@@ -148,12 +140,6 @@ export const translations: Record<LanguageId, Translations> = {
       }
       return `${months}mo ${weeks}w ago`;
     },
-    shareTasks: 'Share Tasks',
-    shareLinkDescription: 'Copy this link to share your tasks',
-    shareLinkHint: 'Paste this link in another browser to import all tasks',
-    copyLink: 'Copy',
-    linkCopied: 'Copied!',
-    noTasksToShare: 'Add tasks to generate a share link',
     editTask: 'Edit task',
     unsavedChanges: 'Unsaved Changes',
     unsavedChangesMessage: 'You have unsaved changes. What would you like to do?',
@@ -263,12 +249,6 @@ export const translations: Record<LanguageId, Translations> = {
       }
       return `${months}м ${weeks}н назад`;
     },
-    shareTasks: 'Поделиться рутинами',
-    shareLinkDescription: 'Скопируйте эту ссылку, чтобы поделиться своими рутинами',
-    shareLinkHint: 'Вставьте эту ссылку в другом браузере, чтобы импортировать все рутины',
-    copyLink: 'Копировать',
-    linkCopied: 'Скопировано!',
-    noTasksToShare: 'Добавьте рутины, чтобы создать ссылку для обмена',
     editTask: 'Редактировать рутину',
     unsavedChanges: 'Несохранённые изменения',
     unsavedChangesMessage: 'У вас есть несохранённые изменения. Что вы хотите сделать?',

@@ -1,5 +1,5 @@
 import { useState } from 'preact/hooks';
-import { tasks, addTask, deleteTask, moveTaskUp, moveTaskDown, generateMagicLink, updateTask, type Task } from '../store';
+import { tasks, addTask, deleteTask, moveTaskUp, moveTaskDown, updateTask, type Task } from '../store';
 import { translations, type LanguageId } from '../i18n';
 import { currentUser, signInWithGoogle } from '../lib/auth';
 import { Popup } from './Popup';
@@ -20,7 +20,6 @@ export function AddTaskScreen({ selectedLanguage, onNavigate }: AddTaskScreenPro
   const [taskName, setTaskName] = useState('');
   const [intervalDays, setIntervalDays] = useState<number | ''>(5);
   const [initialDaysOffset, setInitialDaysOffset] = useState<number | ''>('');
-  const [magicLinkCopied, setMagicLinkCopied] = useState(false);
   const [editingTasks, setEditingTasks] = useState<Map<string, EditingTask>>(new Map());
   const [showUnsavedChangesPopup, setShowUnsavedChangesPopup] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
@@ -88,33 +87,6 @@ export function AddTaskScreen({ selectedLanguage, onNavigate }: AddTaskScreenPro
 
   const handleCancelDelete = () => {
     setTaskToDelete(null);
-  };
-
-  const handleCopyMagicLink = async () => {
-    const link = generateMagicLink();
-    if (link) {
-      try {
-        await navigator.clipboard.writeText(link);
-        setMagicLinkCopied(true);
-        setTimeout(() => setMagicLinkCopied(false), 2000);
-      } catch (e) {
-        console.error('Failed to copy link:', e);
-        const textArea = document.createElement('textarea');
-        textArea.value = link;
-        textArea.style.position = 'fixed';
-        textArea.style.opacity = '0';
-        document.body.appendChild(textArea);
-        textArea.select();
-        try {
-          document.execCommand('copy');
-          setMagicLinkCopied(true);
-          setTimeout(() => setMagicLinkCopied(false), 2000);
-        } catch (err) {
-          console.error('Fallback copy failed:', err);
-        }
-        document.body.removeChild(textArea);
-      }
-    }
   };
 
   const handleEditTask = (task: Task) => {
@@ -421,34 +393,6 @@ export function AddTaskScreen({ selectedLanguage, onNavigate }: AddTaskScreenPro
                 </div>
               );
             })
-          )}
-        </div>
-        <div class="settings-section">
-          <h2>{t.shareTasks}</h2>
-          {tasks.value.length === 0 ? (
-            <p class="empty-message">{t.noTasksToShare}</p>
-          ) : (
-            <div class="form-group">
-              <label>{t.shareLinkDescription}</label>
-              <div class="magic-link-container">
-                <input
-                  type="text"
-                  readOnly
-                  value={generateMagicLink()}
-                  class="magic-link-input"
-                  id="magic-link-input"
-                />
-                <button
-                  type="button"
-                  class={`button-copy ${magicLinkCopied ? 'copied' : ''}`}
-                  onClick={handleCopyMagicLink}
-                  aria-label={magicLinkCopied ? t.linkCopied : t.copyLink}
-                >
-                  {magicLinkCopied ? t.linkCopied : t.copyLink}
-                </button>
-              </div>
-              <small class="form-hint">{t.shareLinkHint}</small>
-            </div>
           )}
         </div>
       </main>

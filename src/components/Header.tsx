@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'preact/hooks';
 import { currentUser, isAuthInitialized, signInWithGoogle, signOut, handleUserLogin, setOnLoginCallback } from '../lib/auth';
+import { translations, type LanguageId } from '../i18n';
 
 export type View = 'dashboard' | 'addTask' | 'settings';
 
@@ -7,14 +8,16 @@ interface HeaderProps {
   currentView: View;
   onNavigate: (view: View) => void;
   onDashboardClick?: () => void;
+  selectedLanguage: LanguageId;
 }
 
-export function Header({ currentView, onNavigate, onDashboardClick }: HeaderProps) {
+export function Header({ currentView, onNavigate, onDashboardClick, selectedLanguage }: HeaderProps) {
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const userDropdownRef = useRef<HTMLDivElement>(null);
 
   // Read directly from global auth signals - these persist across all navigations!
   const isLoadingAuth = !isAuthInitialized.value;
+  const t = translations[selectedLanguage];
 
   // Set up login callback once
   useEffect(() => {
@@ -93,7 +96,7 @@ export function Header({ currentView, onNavigate, onDashboardClick }: HeaderProp
                     style="background-color: transparent; border: none;"
                     onClick={handleDashboardClick}
                   >
-                    Dashboard
+                    {t.dashboard}
                   </button>
                 </li>
                 {currentView !== 'addTask' && (
@@ -103,7 +106,7 @@ export function Header({ currentView, onNavigate, onDashboardClick }: HeaderProp
                       style="background-color: transparent; border: none;"
                       onClick={() => onNavigate('addTask')}
                     >
-                      Add Task
+                      {t.addTaskNav}
                     </button>
                   </li>
                 )}
@@ -124,7 +127,7 @@ export function Header({ currentView, onNavigate, onDashboardClick }: HeaderProp
                   <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                   <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
-                Settings
+                {t.settings}
               </button>
             )}
 
@@ -166,7 +169,7 @@ export function Header({ currentView, onNavigate, onDashboardClick }: HeaderProp
                           <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                           <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
-                        Settings
+                        {t.settings}
                       </button>
                       <button
                         type="button"
@@ -184,7 +187,7 @@ export function Header({ currentView, onNavigate, onDashboardClick }: HeaderProp
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
                           <path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3"></path>
                         </svg>
-                        Logout
+                        {t.logout}
                       </button>
                     </div>
                   </div>
@@ -205,7 +208,7 @@ export function Header({ currentView, onNavigate, onDashboardClick }: HeaderProp
                   (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--button-bg)';
                 }}
               >
-                {isLoadingAuth ? 'Loading...' : 'Login with Google'}
+                {isLoadingAuth ? t.loading : t.loginWithGoogle}
               </button>
             )}
           </div>

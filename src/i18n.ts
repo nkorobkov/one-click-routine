@@ -39,6 +39,14 @@ export interface Translations {
   // Common
   undo: string;
   back: string;
+
+  // Header navigation
+  dashboard: string;
+  addTaskNav: string;
+  settings: string;
+  loginWithGoogle: string;
+  logout: string;
+  loading: string;
   
   // Language names
   languageEnglish: string;
@@ -113,6 +121,15 @@ export const translations: Record<LanguageId, Translations> = {
     language: 'Language',
     undo: 'Undo',
     back: 'Back',
+
+    // Header navigation
+    dashboard: 'Dashboard',
+    addTaskNav: 'Add Task',
+    settings: 'Settings',
+    loginWithGoogle: 'Login with Google',
+    logout: 'Logout',
+    loading: 'Loading...',
+
     languageEnglish: 'English',
     languageRussian: 'Russian',
     everyDays: (days) => `Every ${days} day${days !== 1 ? 's' : ''}`,
@@ -204,6 +221,15 @@ export const translations: Record<LanguageId, Translations> = {
     language: 'Язык',
     undo: 'Отменить',
     back: 'Назад',
+
+    // Header navigation
+    dashboard: 'Главная',
+    addTaskNav: 'Добавить рутину',
+    settings: 'Настройки',
+    loginWithGoogle: 'Войти через Google',
+    logout: 'Выйти',
+    loading: 'Загрузка...',
+
     languageEnglish: 'Английский',
     languageRussian: 'Русский',
     everyDays: (days) => {

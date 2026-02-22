@@ -213,6 +213,7 @@ export function AddTaskScreen({ selectedLanguage, onNavigate }: AddTaskScreenPro
         currentView="addTask"
         onNavigate={(view) => handleNavigateWithCheck(view)}
         onDashboardClick={() => handleNavigateWithCheck('dashboard')}
+        selectedLanguage={selectedLanguage}
       />
       <main class="setup">
         <form class="task-form" onSubmit={handleAddTask}>

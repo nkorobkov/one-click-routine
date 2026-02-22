@@ -43,6 +43,7 @@ export function SettingsPage({ selectedLanguage, onNavigate, onLanguageChange }:
       <Header
         currentView="settings"
         onNavigate={onNavigate}
+        selectedLanguage={selectedLanguage}
       />
       <main class="setup">
         <div class="settings-section">

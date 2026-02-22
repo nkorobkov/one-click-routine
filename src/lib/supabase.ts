@@ -119,14 +119,152 @@ export async function saveUserSettings(settings: UserSettings): Promise<void> {
 }
 
 // Listen to auth state changes
+// IMPORTANT: Callback must be synchronous - do NOT call other Supabase functions inside it
+// Extract user info directly from session to avoid deadlocks
 export function onAuthStateChange(callback: (user: User | null) => void) {
-  const { data } = supabase.auth.onAuthStateChange(async (_event, session) => {
+  const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+    // Extract user info synchronously from session (no async calls!)
     if (session?.user) {
-      const user = await getCurrentUser();
+      const user: User = {
+        id: session.user.id,
+        email: session.user.email,
+        name: session.user.user_metadata?.full_name || 
+              session.user.user_metadata?.name || 
+              session.user.email?.split('@')[0] || 
+              'User',
+        avatar_url: session.user.user_metadata?.avatar_url,
+      };
       callback(user);
     } else {
       callback(null);
     }
   });
   return data;
+}
+
+// ==========================================
+// Task CRUD for Supabase (user_tasks table)
+// ==========================================
+
+export interface SupabaseTaskRow {
+  id: string;
+  user_id: string;
+  name: string;
+  interval_days: number;
+  next_due_date: number;
+  sort_order: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Fetch all tasks for the given user, sorted by sort_order
+export async function fetchUserTasksForUser(
+  userId: string
+): Promise<{ id: string; name: string; intervalDays: number; nextDueDate: number }[] | null> {
+  try {
+    const { data, error } = await supabase
+      .from('user_tasks')
+      .select('*')
+      .eq('user_id', userId)
+      .order('sort_order', { ascending: true });
+
+    if (error) {
+      console.error('[fetchUserTasks] Supabase error:', error);
+      return null;
+    }
+
+    return (data || []).map((row: SupabaseTaskRow) => ({
+      id: row.id,
+      name: row.name,
+      intervalDays: row.interval_days,
+      nextDueDate: row.next_due_date,
+    }));
+  } catch (err) {
+    console.error('[fetchUserTasksForUser] Unexpected error:', err);
+    return null;
+  }
+}
+
+// Upsert a single task for a given user
+export async function upsertUserTaskForUser(
+  userId: string,
+  task: { id: string; name: string; intervalDays: number; nextDueDate: number },
+  sortOrder: number
+): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('user_tasks')
+      .upsert({
+        id: task.id,
+        user_id: userId,
+        name: task.name,
+        interval_days: task.intervalDays,
+        next_due_date: task.nextDueDate,
+        sort_order: sortOrder,
+        updated_at: new Date().toISOString(),
+      });
+
+    if (error) {
+      console.error('[upsertUserTaskForUser] Supabase error:', error);
+      console.error('[upsertUserTaskForUser] Task data:', { userId, id: task.id, name: task.name, intervalDays: task.intervalDays, nextDueDate: task.nextDueDate, sortOrder });
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('[upsertUserTaskForUser] Unexpected error:', err);
+    return false;
+  }
+}
+
+// Batch upsert multiple tasks for a given user (preserves array index as sort_order)
+export async function upsertUserTasksForUser(
+  userId: string,
+  tasks: { id: string; name: string; intervalDays: number; nextDueDate: number }[]
+): Promise<boolean> {
+  try {
+    const rows = tasks.map((task, index) => ({
+      id: task.id,
+      user_id: userId,
+      name: task.name,
+      interval_days: task.intervalDays,
+      next_due_date: task.nextDueDate,
+      sort_order: index,
+      updated_at: new Date().toISOString(),
+    }));
+
+    const { error } = await supabase
+      .from('user_tasks')
+      .upsert(rows);
+
+    if (error) {
+      console.error('[upsertUserTasksForUser] Supabase error:', error);
+      console.error('[upsertUserTasksForUser] Task count:', tasks.length, 'userId:', userId);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('[upsertUserTasksForUser] Unexpected error:', err);
+    return false;
+  }
+}
+
+// Delete a single task for a given user
+export async function deleteUserTaskForUser(userId: string, taskId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('user_tasks')
+      .delete()
+      .eq('user_id', userId)
+      .eq('id', taskId);
+
+    if (error) {
+      console.error('[deleteUserTaskForUser] Supabase error:', error);
+      console.error('[deleteUserTaskForUser] Task ID:', taskId, 'userId:', userId);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('[deleteUserTaskForUser] Unexpected error:', err);
+    return false;
+  }
 }

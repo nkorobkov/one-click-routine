@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef } from 'preact/hooks';
-import { tasks, completeTask, getDaysRemaining, checkDayChange, getDueDate, getDaysOverdue, adjustTaskTime, type Task } from '../store';
+import { tasks, completeTask, undoComplete, getDaysRemaining, checkDayChange, getDueDate, getDaysOverdue, adjustTaskTime, retrySyncPending, type Task } from '../store';
 import { translations, weekdays, months, type LanguageId } from '../i18n';
+import { currentUser, signInWithGoogle } from '../lib/auth';
+import { Popup } from './Popup';
 import textFit from 'textfit';
 
 interface DashboardProps {
@@ -14,6 +16,7 @@ export function Dashboard({ selectedLanguage, onSettingsClick }: DashboardProps)
   const [undoTimeout, setUndoTimeout] = useState<number | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [timeAdjustPopup, setTimeAdjustPopup] = useState<{ taskId: string; x: number; y: number } | null>(null);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
   const isClosingPopupRef = useRef(false);
   const taskNameRefs = useRef<Map<string, HTMLElement>>(new Map());
@@ -42,11 +45,13 @@ export function Dashboard({ selectedLanguage, onSettingsClick }: DashboardProps)
     return () => clearInterval(timeInterval);
   }, []);
 
-  // Midnight auto-update: Check every 60 seconds if day has changed
+  // Midnight auto-update + pending sync retry: Check every 60 seconds
   useEffect(() => {
     checkDayChange(); // Initial check
+    retrySyncPending(); // Initial retry of any pending syncs
     const interval = setInterval(() => {
       checkDayChange();
+      retrySyncPending();
     }, 60000); // Every 60 seconds
 
     return () => clearInterval(interval);
@@ -141,7 +146,7 @@ export function Dashboard({ selectedLanguage, onSettingsClick }: DashboardProps)
     
     const previousTime = task.nextDueDate;
     
-    // Complete the task
+    // Complete the task (optimistic — updates local immediately)
     completeTask(id);
     
     // Show undo toast with previous time
@@ -161,24 +166,19 @@ export function Dashboard({ selectedLanguage, onSettingsClick }: DashboardProps)
     }, 3000);
     
     setUndoTimeout(timeout);
+
+    // Show login prompt for non-logged-in users
+    if (!currentUser.value) {
+      setShowLoginPrompt(true);
+    }
   };
 
   const handleUndo = () => {
     if (undoTaskId && undoPreviousTime !== null && undoTimeout !== null) {
       clearTimeout(undoTimeout);
       
-      // Revert the completion by restoring previous nextDueDate
-      const updated = tasks.value.map((t) =>
-        t.id === undoTaskId ? { ...t, nextDueDate: undoPreviousTime } : t
-      );
-      tasks.value = updated;
-      
-      // Save to localStorage (using the saveTasks function from store)
-      try {
-        localStorage.setItem('one-click-routine-tasks', JSON.stringify(updated));
-      } catch (e) {
-        console.error('Failed to save tasks:', e);
-      }
+      // Revert the completion using store function (handles Supabase sync)
+      undoComplete(undoTaskId, undoPreviousTime);
       
       setUndoTaskId(null);
       setUndoPreviousTime(null);
@@ -193,6 +193,15 @@ export function Dashboard({ selectedLanguage, onSettingsClick }: DashboardProps)
     setUndoTaskId(null);
     setUndoPreviousTime(null);
     setUndoTimeout(null);
+  };
+
+  const handleLoginFromPrompt = async () => {
+    setShowLoginPrompt(false);
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      console.error('Login failed:', error);
+    }
   };
 
   const handleTimeElementClick = (e: Event, taskId: string) => {
@@ -229,7 +238,12 @@ export function Dashboard({ selectedLanguage, onSettingsClick }: DashboardProps)
       {undoTaskId && (
         <div class="undo-toast" onClick={handleUndoDismiss}>
           <div class="undo-toast-content" onClick={(e) => e.stopPropagation()}>
-            <div class="undo-toast-text">{tasks.value.find((t) => t.id === undoTaskId)?.name} {t.taskCompleted}</div>
+            <div class="undo-toast-text">
+              {tasks.value.find((t) => t.id === undoTaskId)?.name} {t.taskCompleted}
+              {!currentUser.value && (
+                <div style="font-size: 0.75em; opacity: 0.8; margin-top: 2px;">{t.loginToSaveMessage}</div>
+              )}
+            </div>
             <button class="undo-button" onClick={handleUndo} aria-label={t.undo}>
               {t.undo}
             </button>
@@ -347,6 +361,26 @@ export function Dashboard({ selectedLanguage, onSettingsClick }: DashboardProps)
             </button>
           </div>
         </>
+      )}
+      {showLoginPrompt && (
+        <Popup
+          title={t.loginToSave}
+          message={t.loginToSaveMessage}
+          buttons={[
+            {
+              label: t.login,
+              onClick: handleLoginFromPrompt,
+              className: 'button-primary',
+            },
+            {
+              label: t.ok,
+              onClick: () => setShowLoginPrompt(false),
+              className: 'button-secondary',
+            },
+          ]}
+          onClose={() => setShowLoginPrompt(false)}
+          selectedLanguage={selectedLanguage}
+        />
       )}
     </div>
   );

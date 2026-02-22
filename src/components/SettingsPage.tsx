@@ -2,16 +2,16 @@ import { useState, useEffect } from 'preact/hooks';
 import { themes, type ThemeId, getStoredTheme, saveTheme, applyTheme } from '../themes';
 import { translations, type LanguageId, saveLanguage } from '../i18n';
 import { Header, type View } from './Header';
-import { getCurrentUser, saveUserSettings } from '../lib/supabase';
+import { currentUser } from '../lib/auth';
+import { saveUserSettings } from '../lib/supabase';
 
 interface SettingsPageProps {
   selectedLanguage: LanguageId;
   onNavigate: (view: View) => void;
   onLanguageChange: (language: LanguageId) => void;
-  onUserLogin?: () => void;
 }
 
-export function SettingsPage({ selectedLanguage, onNavigate, onLanguageChange, onUserLogin }: SettingsPageProps) {
+export function SettingsPage({ selectedLanguage, onNavigate, onLanguageChange }: SettingsPageProps) {
   const [selectedTheme, setSelectedTheme] = useState<ThemeId>(getStoredTheme());
   const t = translations[selectedLanguage];
 
@@ -23,8 +23,7 @@ export function SettingsPage({ selectedLanguage, onNavigate, onLanguageChange, o
     saveLanguage(newLanguage);
     onLanguageChange(newLanguage);
     // Sync to Supabase if logged in (fire-and-forget)
-    const user = await getCurrentUser();
-    if (user) {
+    if (currentUser.value) {
       saveUserSettings({ language: newLanguage, theme: selectedTheme });
     }
   };
@@ -34,8 +33,7 @@ export function SettingsPage({ selectedLanguage, onNavigate, onLanguageChange, o
     saveTheme(newTheme);
     applyTheme(newTheme);
     // Sync to Supabase if logged in (fire-and-forget)
-    const user = await getCurrentUser();
-    if (user) {
+    if (currentUser.value) {
       saveUserSettings({ language: selectedLanguage, theme: newTheme });
     }
   };
@@ -45,7 +43,6 @@ export function SettingsPage({ selectedLanguage, onNavigate, onLanguageChange, o
       <Header
         currentView="settings"
         onNavigate={onNavigate}
-        onUserLogin={onUserLogin}
       />
       <main class="setup">
         <div class="settings-section">

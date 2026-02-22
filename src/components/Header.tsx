@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'preact/hooks';
-import { signInWithGoogle, signOut, getCurrentUser, onAuthStateChange, type User } from '../lib/supabase';
-import { getCachedUser, getOrInitUserCache, setCachedUser, clearCachedUser, isUserCacheInitialized } from '../lib/userCache';
+import { currentUser, isAuthInitialized, signInWithGoogle, signOut, handleUserLogin, setOnLoginCallback } from '../lib/auth';
 
 export type View = 'dashboard' | 'addTask' | 'settings';
 
@@ -8,59 +7,24 @@ interface HeaderProps {
   currentView: View;
   onNavigate: (view: View) => void;
   onDashboardClick?: () => void;
-  onUserLogin?: () => void;
 }
 
-export function Header({ currentView, onNavigate, onDashboardClick, onUserLogin }: HeaderProps) {
-  // Initialize from cache if available - this prevents loading state on navigation
-  const cachedUser = getCachedUser();
-  const [user, setUser] = useState<User | null>(cachedUser);
-  // Only show loading if cache hasn't been initialized yet
-  const [isLoadingAuth, setIsLoadingAuth] = useState(!isUserCacheInitialized());
+export function Header({ currentView, onNavigate, onDashboardClick }: HeaderProps) {
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const userDropdownRef = useRef<HTMLDivElement>(null);
 
+  // Read directly from global auth signals - these persist across all navigations!
+  const isLoadingAuth = !isAuthInitialized.value;
+
+  // Set up login callback once
   useEffect(() => {
-    // Use cache to get or initialize user - this ensures we don't refetch on every mount
-    getOrInitUserCache(getCurrentUser).then((u) => {
-      setUser(u);
-      setIsLoadingAuth(false);
+    setOnLoginCallback(async () => {
+      // Call the handleUserLogin from auth module
+      await handleUserLogin();
     });
-
-    const subscription = onAuthStateChange((u) => {
-      // Check if user was previously logged out by checking cached user
-      const wasLoggedOut = !getCachedUser();
-      // Update cache when auth state changes
-      setCachedUser(u);
-      setUser(u);
-      setIsLoadingAuth(false);
-      if (u && wasLoggedOut && onUserLogin) {
-        onUserLogin();
-      }
-    });
-
-    const handleAuthCallback = async () => {
-      const hashParams = new URLSearchParams(window.location.hash.substring(1));
-      if (hashParams.get('access_token')) {
-        const u = await getCurrentUser();
-        // Update cache after OAuth callback
-        setCachedUser(u);
-        setUser(u);
-        setIsLoadingAuth(false);
-        window.history.replaceState({}, '', window.location.pathname);
-        if (u && onUserLogin) {
-          onUserLogin();
-        }
-      }
-    };
-
-    handleAuthCallback();
-
-    return () => {
-      subscription.subscription.unsubscribe();
-    };
   }, []);
 
+  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (userDropdownRef.current && !userDropdownRef.current.contains(event.target as Node)) {
@@ -79,20 +43,15 @@ export function Header({ currentView, onNavigate, onDashboardClick, onUserLogin 
 
   const handleLogin = async () => {
     try {
-      setIsLoadingAuth(true);
       await signInWithGoogle();
     } catch (error) {
       console.error('Login failed:', error);
-      setIsLoadingAuth(false);
     }
   };
 
   const handleLogout = async () => {
     try {
       await signOut();
-      // Clear cache on logout
-      clearCachedUser();
-      setUser(null);
       setShowUserDropdown(false);
     } catch (error) {
       console.error('Logout failed:', error);
@@ -155,7 +114,7 @@ export function Header({ currentView, onNavigate, onDashboardClick, onUserLogin 
           {/* Right side: Settings and Auth */}
           <div class="flex items-center gap-4">
             {/* Settings button - only show when not logged in */}
-            {!user && currentView !== 'settings' && (
+            {!currentUser.value && currentView !== 'settings' && (
               <button
                 class="text-[var(--text-secondary)] transition hover:text-[var(--text-primary)] flex items-center gap-2 text-sm"
                 style="background-color: transparent; border: none;"
@@ -169,24 +128,24 @@ export function Header({ currentView, onNavigate, onDashboardClick, onUserLogin 
               </button>
             )}
 
-            {user ? (
+            {currentUser.value ? (
               <div class="relative" ref={userDropdownRef}>
                 <button
                   class="overflow-hidden rounded-full border border-[var(--border-color)] shadow-inner w-10 h-10 flex items-center justify-center cursor-pointer p-0 active:scale-95 transition-all"
-                  style={user.avatar_url ? '' : 'background-color: var(--accent-green);'}
+                  style={currentUser.value.avatar_url ? '' : 'background-color: var(--accent-green);'}
                   onClick={() => setShowUserDropdown(!showUserDropdown)}
                   aria-label="User menu"
                 >
-                  {user.avatar_url ? (
-                    <img src={user.avatar_url} alt={user.name} class="w-full h-full object-cover" />
+                  {currentUser.value.avatar_url ? (
+                    <img src={currentUser.value.avatar_url} alt={currentUser.value.name} class="w-full h-full object-cover" />
                   ) : (
-                    <span class="text-base font-semibold text-[var(--text-primary)]">{getInitials(user.name || 'User')}</span>
+                    <span class="text-base font-semibold text-[var(--text-primary)]">{getInitials(currentUser.value.name || 'User')}</span>
                   )}
                 </button>
                 {showUserDropdown && (
                   <div class="absolute end-0 z-10 mt-0.5 w-56 rounded-md border border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-lg" role="menu" style="box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);">
                     <div class="p-2">
-                      <div class="px-4 py-2 text-sm font-semibold text-[var(--text-primary)]">{user.name}</div>
+                      <div class="px-4 py-2 text-sm font-semibold text-[var(--text-primary)]">{currentUser.value.name}</div>
                       <div class="h-px bg-[var(--border-color)] my-2"></div>
                       <button
                         class="flex w-full items-center gap-2 rounded-lg px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"

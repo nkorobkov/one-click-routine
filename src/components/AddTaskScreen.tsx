@@ -1,14 +1,13 @@
 import { useState } from 'preact/hooks';
 import { tasks, addTask, deleteTask, moveTaskUp, moveTaskDown, generateMagicLink, updateTask, type Task } from '../store';
 import { translations, type LanguageId } from '../i18n';
+import { currentUser, signInWithGoogle } from '../lib/auth';
 import { Popup } from './Popup';
 import { Header, type View } from './Header';
 
 interface AddTaskScreenProps {
   selectedLanguage: LanguageId;
   onNavigate: (view: View) => void;
-  onLanguageChange: (language: LanguageId) => void;
-  onUserLogin?: () => void;
 }
 
 interface EditingTask {
@@ -17,7 +16,7 @@ interface EditingTask {
   intervalDays: number | '';
 }
 
-export function AddTaskScreen({ selectedLanguage, onNavigate, onUserLogin }: AddTaskScreenProps) {
+export function AddTaskScreen({ selectedLanguage, onNavigate }: AddTaskScreenProps) {
   const [taskName, setTaskName] = useState('');
   const [intervalDays, setIntervalDays] = useState<number | ''>(5);
   const [initialDaysOffset, setInitialDaysOffset] = useState<number | ''>('');
@@ -26,8 +25,15 @@ export function AddTaskScreen({ selectedLanguage, onNavigate, onUserLogin }: Add
   const [showUnsavedChangesPopup, setShowUnsavedChangesPopup] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
   const [pendingNavigation, setPendingNavigation] = useState<View | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [savingTaskId, setSavingTaskId] = useState<string | null>(null);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [showLoginRequiredPopup, setShowLoginRequiredPopup] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const t = translations[selectedLanguage];
+  const loggedIn = currentUser.value !== null;
 
   // Check if there are unsaved changes (only if values actually differ from original)
   const hasUnsavedChanges = Array.from(editingTasks.entries()).some(([taskId, editingTask]) => {
@@ -38,15 +44,27 @@ export function AddTaskScreen({ selectedLanguage, onNavigate, onUserLogin }: Add
            editingDays !== originalTask.intervalDays;
   });
 
-  const handleAddTask = (e: Event) => {
+  const handleAddTask = async (e: Event) => {
     e.preventDefault();
     const days = typeof intervalDays === 'number' ? intervalDays : parseInt(String(intervalDays)) || 0;
     if (taskName.trim() && days > 0) {
+      setIsSubmitting(true);
+      setErrorMessage(null);
       const offset = initialDaysOffset === '' ? undefined : Number(initialDaysOffset);
-      addTask(taskName.trim(), days, offset);
-      setTaskName('');
-      setIntervalDays(5);
-      setInitialDaysOffset('');
+      const success = await addTask(taskName.trim(), days, offset);
+      setIsSubmitting(false);
+
+      if (success) {
+        setTaskName('');
+        setIntervalDays(5);
+        setInitialDaysOffset('');
+        // Show login prompt for non-logged-in users
+        if (!loggedIn) {
+          setShowLoginPrompt(true);
+        }
+      } else {
+        setErrorMessage(t.addTaskFailed);
+      }
     }
   };
 
@@ -54,10 +72,17 @@ export function AddTaskScreen({ selectedLanguage, onNavigate, onUserLogin }: Add
     setTaskToDelete(id);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (taskToDelete) {
-      deleteTask(taskToDelete);
-      setTaskToDelete(null);
+      setIsDeleting(true);
+      setErrorMessage(null);
+      const success = await deleteTask(taskToDelete);
+      setIsDeleting(false);
+      if (success) {
+        setTaskToDelete(null);
+      } else {
+        setErrorMessage(t.deleteTaskFailed);
+      }
     }
   };
 
@@ -93,6 +118,12 @@ export function AddTaskScreen({ selectedLanguage, onNavigate, onUserLogin }: Add
   };
 
   const handleEditTask = (task: Task) => {
+    // Non-logged-in users cannot edit — show login required popup
+    if (!loggedIn) {
+      setShowLoginRequiredPopup(true);
+      return;
+    }
+
     const newEditingTasks = new Map(editingTasks);
     newEditingTasks.set(task.id, {
       id: task.id,
@@ -108,15 +139,22 @@ export function AddTaskScreen({ selectedLanguage, onNavigate, onUserLogin }: Add
     setEditingTasks(newEditingTasks);
   };
 
-  const handleSaveEdit = (taskId: string) => {
+  const handleSaveEdit = async (taskId: string) => {
     const editingTask = editingTasks.get(taskId);
     if (editingTask && editingTask.name.trim()) {
       const days = typeof editingTask.intervalDays === 'number' ? editingTask.intervalDays : parseInt(String(editingTask.intervalDays)) || 0;
       if (days > 0) {
-        updateTask(taskId, editingTask.name.trim(), days);
-        const newEditingTasks = new Map(editingTasks);
-        newEditingTasks.delete(taskId);
-        setEditingTasks(newEditingTasks);
+        setSavingTaskId(taskId);
+        setErrorMessage(null);
+        const success = await updateTask(taskId, editingTask.name.trim(), days);
+        setSavingTaskId(null);
+        if (success) {
+          const newEditingTasks = new Map(editingTasks);
+          newEditingTasks.delete(taskId);
+          setEditingTasks(newEditingTasks);
+        } else {
+          setErrorMessage(t.updateTaskFailed);
+        }
       }
     }
   };
@@ -150,15 +188,21 @@ export function AddTaskScreen({ selectedLanguage, onNavigate, onUserLogin }: Add
     }
   };
 
-  const handleSaveAndExit = () => {
-    editingTasks.forEach((editingTask) => {
+  const handleSaveAndExit = async () => {
+    // Save all editing tasks (pessimistic)
+    for (const [, editingTask] of editingTasks) {
       if (editingTask.name.trim()) {
         const days = typeof editingTask.intervalDays === 'number' ? editingTask.intervalDays : parseInt(String(editingTask.intervalDays)) || 0;
         if (days > 0) {
-          updateTask(editingTask.id, editingTask.name.trim(), days);
+          const success = await updateTask(editingTask.id, editingTask.name.trim(), days);
+          if (!success) {
+            setErrorMessage(t.updateTaskFailed);
+            setShowUnsavedChangesPopup(false);
+            return; // Stop on first failure
+          }
         }
       }
-    });
+    }
     setEditingTasks(new Map());
     setShowUnsavedChangesPopup(false);
     if (pendingNavigation) {
@@ -181,17 +225,31 @@ export function AddTaskScreen({ selectedLanguage, onNavigate, onUserLogin }: Add
     setPendingNavigation(null);
   };
 
+  const handleLoginFromPrompt = async () => {
+    setShowLoginPrompt(false);
+    setShowLoginRequiredPopup(false);
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      console.error('Login failed:', error);
+    }
+  };
+
   return (
     <div class="app">
       <Header
         currentView="addTask"
         onNavigate={(view) => handleNavigateWithCheck(view)}
         onDashboardClick={() => handleNavigateWithCheck('dashboard')}
-        onUserLogin={onUserLogin}
       />
       <main class="setup">
         <form class="task-form" onSubmit={handleAddTask}>
           <h2>{t.addNewTask}</h2>
+          {errorMessage && (
+            <div style="color: var(--danger); padding: 8px 12px; border-radius: 8px; background: rgba(255,59,48,0.1); margin-bottom: 12px; font-size: 0.9em;">
+              {errorMessage}
+            </div>
+          )}
           <div class="form-group">
             <label for="task-name">{t.taskName}</label>
             <input
@@ -237,9 +295,9 @@ export function AddTaskScreen({ selectedLanguage, onNavigate, onUserLogin }: Add
           <button
             type="submit"
             class="button-primary"
-            disabled={!taskName.trim() || intervalDays === '' || (typeof intervalDays === 'number' && intervalDays <= 0)}
+            disabled={!taskName.trim() || intervalDays === '' || (typeof intervalDays === 'number' && intervalDays <= 0) || isSubmitting}
           >
-            {t.addTask}
+            {isSubmitting ? '...' : t.addTask}
           </button>
         </form>
 
@@ -251,6 +309,7 @@ export function AddTaskScreen({ selectedLanguage, onNavigate, onUserLogin }: Add
             tasks.value.map((task, index) => {
               const isEditing = editingTasks.has(task.id);
               const editingTask = editingTasks.get(task.id);
+              const isSaving = savingTaskId === task.id;
 
               if (isEditing && editingTask) {
                 return (
@@ -262,6 +321,7 @@ export function AddTaskScreen({ selectedLanguage, onNavigate, onUserLogin }: Add
                         onInput={(e) => handleUpdateEditingTask(task.id, 'name', (e.target as HTMLInputElement).value)}
                         class="task-edit-input"
                         placeholder={t.taskNamePlaceholder}
+                        disabled={isSaving}
                       />
                       <div class="task-edit-period">
                         <label>{t.frequencyDays}:</label>
@@ -275,6 +335,7 @@ export function AddTaskScreen({ selectedLanguage, onNavigate, onUserLogin }: Add
                             handleUpdateEditingTask(task.id, 'intervalDays', val === '' ? '' : (parseInt(val) || ''));
                           }}
                           class="task-edit-input task-edit-input-number"
+                          disabled={isSaving}
                         />
                       </div>
                     </div>
@@ -283,16 +344,21 @@ export function AddTaskScreen({ selectedLanguage, onNavigate, onUserLogin }: Add
                         class="button-action button-save"
                         onClick={() => handleSaveEdit(task.id)}
                         aria-label="Save"
-                        disabled={!editingTask.name.trim() || editingTask.intervalDays === '' || (typeof editingTask.intervalDays === 'number' && editingTask.intervalDays <= 0)}
+                        disabled={!editingTask.name.trim() || editingTask.intervalDays === '' || (typeof editingTask.intervalDays === 'number' && editingTask.intervalDays <= 0) || isSaving}
                       >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M20 6L9 17l-5-5"/>
-                        </svg>
+                        {isSaving ? (
+                          <span style="font-size: 12px;">...</span>
+                        ) : (
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M20 6L9 17l-5-5"/>
+                          </svg>
+                        )}
                       </button>
                       <button
                         class="button-action button-cancel"
                         onClick={() => handleCancelEdit(task.id)}
                         aria-label="Cancel"
+                        disabled={isSaving}
                       >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <line x1="18" y1="6" x2="6" y2="18"/>
@@ -332,9 +398,10 @@ export function AddTaskScreen({ selectedLanguage, onNavigate, onUserLogin }: Add
                       </svg>
                     </button>
                     <button
-                      class="button-action button-edit"
+                      class={`button-action button-edit${!loggedIn ? ' button-disabled' : ''}`}
                       onClick={() => handleEditTask(task)}
                       aria-label={t.editTask}
+                      style={!loggedIn ? 'opacity: 0.4; cursor: not-allowed;' : ''}
                     >
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
@@ -419,7 +486,7 @@ export function AddTaskScreen({ selectedLanguage, onNavigate, onUserLogin }: Add
             message={t.deleteTaskMessage}
             buttons={[
               {
-                label: t.delete,
+                label: isDeleting ? '...' : t.delete,
                 onClick: handleConfirmDelete,
                 className: 'button-danger',
               },
@@ -434,6 +501,46 @@ export function AddTaskScreen({ selectedLanguage, onNavigate, onUserLogin }: Add
           />
         );
       })()}
+      {showLoginPrompt && (
+        <Popup
+          title={t.loginToSave}
+          message={t.loginToSaveMessage}
+          buttons={[
+            {
+              label: t.login,
+              onClick: handleLoginFromPrompt,
+              className: 'button-primary',
+            },
+            {
+              label: t.ok,
+              onClick: () => setShowLoginPrompt(false),
+              className: 'button-secondary',
+            },
+          ]}
+          onClose={() => setShowLoginPrompt(false)}
+          selectedLanguage={selectedLanguage}
+        />
+      )}
+      {showLoginRequiredPopup && (
+        <Popup
+          title={t.loginRequired}
+          message={t.loginRequiredMessage}
+          buttons={[
+            {
+              label: t.login,
+              onClick: handleLoginFromPrompt,
+              className: 'button-primary',
+            },
+            {
+              label: t.ok,
+              onClick: () => setShowLoginRequiredPopup(false),
+              className: 'button-secondary',
+            },
+          ]}
+          onClose={() => setShowLoginRequiredPopup(false)}
+          selectedLanguage={selectedLanguage}
+        />
+      )}
     </div>
   );
 }

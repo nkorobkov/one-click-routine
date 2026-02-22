@@ -65,6 +65,18 @@ export interface Translations {
   saveAndExit: string;
   discardAndExit: string;
   stay: string;
+
+  // Online sync / login prompts
+  loginToSave: string;
+  loginToSaveMessage: string;
+  loginRequired: string;
+  loginRequiredMessage: string;
+  login: string;
+  ok: string;
+  syncError: string;
+  addTaskFailed: string;
+  deleteTaskFailed: string;
+  updateTaskFailed: string;
 }
 
 export const translations: Record<LanguageId, Translations> = {
@@ -148,6 +160,18 @@ export const translations: Record<LanguageId, Translations> = {
     saveAndExit: 'Save and Exit',
     discardAndExit: 'Discard and Exit',
     stay: 'Stay',
+
+    // Online sync / login prompts
+    loginToSave: 'Save Online',
+    loginToSaveMessage: 'Login to save your task data online',
+    loginRequired: 'Login Required',
+    loginRequiredMessage: 'You need to log in to edit task names and periods',
+    login: 'Login',
+    ok: 'OK',
+    syncError: 'Failed to sync with server',
+    addTaskFailed: 'Failed to add task. Please try again.',
+    deleteTaskFailed: 'Failed to delete task. Please try again.',
+    updateTaskFailed: 'Failed to update task. Please try again.',
   },
   ru: {
     timeFormat: (hours, minutes) => {
@@ -251,6 +275,18 @@ export const translations: Record<LanguageId, Translations> = {
     saveAndExit: 'Сохранить и выйти',
     discardAndExit: 'Отменить и выйти',
     stay: 'Остаться',
+
+    // Online sync / login prompts
+    loginToSave: 'Сохранить онлайн',
+    loginToSaveMessage: 'Войдите, чтобы сохранить данные задач онлайн',
+    loginRequired: 'Требуется авторизация',
+    loginRequiredMessage: 'Войдите, чтобы редактировать названия и периоды задач',
+    login: 'Войти',
+    ok: 'ОК',
+    syncError: 'Не удалось синхронизировать с сервером',
+    addTaskFailed: 'Не удалось добавить задачу. Попробуйте ещё раз.',
+    deleteTaskFailed: 'Не удалось удалить задачу. Попробуйте ещё раз.',
+    updateTaskFailed: 'Не удалось обновить задачу. Попробуйте ещё раз.',
   },
 };
 

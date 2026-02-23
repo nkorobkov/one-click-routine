@@ -4,6 +4,9 @@ import { translations, type LanguageId } from '../i18n';
 import { currentUser, signInWithGoogle } from '../lib/auth';
 import { Popup } from './Popup';
 import { Header, type View } from './Header';
+import { ListSelector } from './ListSelector';
+import { ListManager } from './ListManager';
+import { lists, setTaskListsForTask, getTaskLists } from '../lib/lists';
 
 interface AddTaskScreenProps {
   selectedLanguage: LanguageId;
@@ -14,12 +17,14 @@ interface EditingTask {
   id: string;
   name: string;
   intervalDays: number | '';
+  selectedListIds: string[];
 }
 
 export function AddTaskScreen({ selectedLanguage, onNavigate }: AddTaskScreenProps) {
   const [taskName, setTaskName] = useState('');
   const [intervalDays, setIntervalDays] = useState<number | ''>(5);
   const [initialDaysOffset, setInitialDaysOffset] = useState<number | ''>('');
+  const [selectedListIds, setSelectedListIds] = useState<string[]>([]);
   const [editingTasks, setEditingTasks] = useState<Map<string, EditingTask>>(new Map());
   const [showUnsavedChangesPopup, setShowUnsavedChangesPopup] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
@@ -39,8 +44,13 @@ export function AddTaskScreen({ selectedLanguage, onNavigate }: AddTaskScreenPro
     const originalTask = tasks.value.find(t => t.id === taskId);
     if (!originalTask) return false;
     const editingDays = typeof editingTask.intervalDays === 'number' ? editingTask.intervalDays : parseInt(String(editingTask.intervalDays)) || 0;
+    const originalListIds = getTaskLists(taskId).map(l => l.id).sort();
+    const editingListIds = editingTask.selectedListIds.sort();
+    const listsChanged = originalListIds.length !== editingListIds.length ||
+                        originalListIds.some((id, i) => id !== editingListIds[i]);
     return editingTask.name.trim() !== originalTask.name.trim() ||
-           editingDays !== originalTask.intervalDays;
+           editingDays !== originalTask.intervalDays ||
+           listsChanged;
   });
 
   const handleAddTask = async (e: Event) => {
@@ -51,17 +61,28 @@ export function AddTaskScreen({ selectedLanguage, onNavigate }: AddTaskScreenPro
       setErrorMessage(null);
       const offset = initialDaysOffset === '' ? undefined : Number(initialDaysOffset);
       const success = await addTask(taskName.trim(), days, offset);
-      setIsSubmitting(false);
 
       if (success) {
+        // Get the newly added task (last one in the array)
+        const newTask = tasks.value[tasks.value.length - 1];
+
+        // Set task-list associations if logged in and lists are selected
+        if (loggedIn && selectedListIds.length > 0 && newTask) {
+          await setTaskListsForTask(newTask.id, selectedListIds);
+        }
+
         setTaskName('');
         setIntervalDays(5);
         setInitialDaysOffset('');
+        setSelectedListIds([]);
+        setIsSubmitting(false);
+
         // Show login prompt for non-logged-in users
         if (!loggedIn) {
           setShowLoginPrompt(true);
         }
       } else {
+        setIsSubmitting(false);
         setErrorMessage(t.addTaskFailed);
       }
     }
@@ -96,11 +117,13 @@ export function AddTaskScreen({ selectedLanguage, onNavigate }: AddTaskScreenPro
       return;
     }
 
+    const taskListIds = getTaskLists(task.id).map(l => l.id);
     const newEditingTasks = new Map(editingTasks);
     newEditingTasks.set(task.id, {
       id: task.id,
       name: task.name,
       intervalDays: task.intervalDays,
+      selectedListIds: taskListIds,
     });
     setEditingTasks(newEditingTasks);
   };
@@ -118,9 +141,16 @@ export function AddTaskScreen({ selectedLanguage, onNavigate }: AddTaskScreenPro
       if (days > 0) {
         setSavingTaskId(taskId);
         setErrorMessage(null);
-        const success = await updateTask(taskId, editingTask.name.trim(), days);
+
+        // Update task name and interval
+        const taskSuccess = await updateTask(taskId, editingTask.name.trim(), days);
+
+        // Update task-list associations
+        const listsSuccess = await setTaskListsForTask(taskId, editingTask.selectedListIds);
+
         setSavingTaskId(null);
-        if (success) {
+
+        if (taskSuccess && listsSuccess) {
           const newEditingTasks = new Map(editingTasks);
           newEditingTasks.delete(taskId);
           setEditingTasks(newEditingTasks);
@@ -131,7 +161,7 @@ export function AddTaskScreen({ selectedLanguage, onNavigate }: AddTaskScreenPro
     }
   };
 
-  const handleUpdateEditingTask = (taskId: string, field: 'name' | 'intervalDays', value: string | number | '') => {
+  const handleUpdateEditingTask = (taskId: string, field: 'name' | 'intervalDays' | 'selectedListIds', value: string | number | '' | string[]) => {
     const editingTask = editingTasks.get(taskId);
     if (editingTask) {
       const newEditingTasks = new Map(editingTasks);
@@ -141,6 +171,11 @@ export function AddTaskScreen({ selectedLanguage, onNavigate }: AddTaskScreenPro
           ...editingTask,
           intervalDays: numValue,
         });
+      } else if (field === 'selectedListIds') {
+        newEditingTasks.set(taskId, {
+          ...editingTask,
+          selectedListIds: value as string[],
+        });
       } else {
         newEditingTasks.set(taskId, {
           ...editingTask,
@@ -148,6 +183,27 @@ export function AddTaskScreen({ selectedLanguage, onNavigate }: AddTaskScreenPro
         });
       }
       setEditingTasks(newEditingTasks);
+    }
+  };
+
+  const handleToggleListForNewTask = (listId: string) => {
+    setSelectedListIds(prev => {
+      if (prev.includes(listId)) {
+        return prev.filter(id => id !== listId);
+      } else {
+        return [...prev, listId];
+      }
+    });
+  };
+
+  const handleToggleListForEditingTask = (taskId: string, listId: string) => {
+    const editingTask = editingTasks.get(taskId);
+    if (editingTask) {
+      const currentListIds = editingTask.selectedListIds;
+      const newListIds = currentListIds.includes(listId)
+        ? currentListIds.filter(id => id !== listId)
+        : [...currentListIds, listId];
+      handleUpdateEditingTask(taskId, 'selectedListIds', newListIds);
     }
   };
 
@@ -166,8 +222,9 @@ export function AddTaskScreen({ selectedLanguage, onNavigate }: AddTaskScreenPro
       if (editingTask.name.trim()) {
         const days = typeof editingTask.intervalDays === 'number' ? editingTask.intervalDays : parseInt(String(editingTask.intervalDays)) || 0;
         if (days > 0) {
-          const success = await updateTask(editingTask.id, editingTask.name.trim(), days);
-          if (!success) {
+          const taskSuccess = await updateTask(editingTask.id, editingTask.name.trim(), days);
+          const listsSuccess = await setTaskListsForTask(editingTask.id, editingTask.selectedListIds);
+          if (!taskSuccess || !listsSuccess) {
             setErrorMessage(t.updateTaskFailed);
             setShowUnsavedChangesPopup(false);
             return; // Stop on first failure
@@ -249,6 +306,18 @@ export function AddTaskScreen({ selectedLanguage, onNavigate }: AddTaskScreenPro
               required
             />
           </div>
+          {loggedIn && (
+            <div class="form-group">
+              <label>{t.lists}</label>
+              <ListSelector
+                selectedListIds={selectedListIds}
+                onToggle={handleToggleListForNewTask}
+                disabled={false}
+                selectedLanguage={selectedLanguage}
+              />
+              <small class="form-hint">{t.swipeToSeeLists}</small>
+            </div>
+          )}
           <div class="form-group">
             <label for="initial-days">{t.daysUntilFirstCompletion}</label>
             <input
@@ -311,6 +380,14 @@ export function AddTaskScreen({ selectedLanguage, onNavigate }: AddTaskScreenPro
                           disabled={isSaving}
                         />
                       </div>
+                      <div class="mt-2">
+                        <ListSelector
+                          selectedListIds={editingTask.selectedListIds}
+                          onToggle={(listId) => handleToggleListForEditingTask(task.id, listId)}
+                          disabled={isSaving}
+                          selectedLanguage={selectedLanguage}
+                        />
+                      </div>
                     </div>
                     <div class="task-item-actions">
                       <button
@@ -348,6 +425,19 @@ export function AddTaskScreen({ selectedLanguage, onNavigate }: AddTaskScreenPro
                   <div class="task-item-content">
                     <h3>{task.name}</h3>
                     <p>{t.everyDays(task.intervalDays)}</p>
+                    {loggedIn && getTaskLists(task.id).length > 0 && (
+                      <div class="flex flex-wrap gap-1 mt-1">
+                        {getTaskLists(task.id).map((list) => (
+                          <span
+                            key={list.id}
+                            class="px-2 py-0.5 rounded-lg text-xs text-[var(--text-secondary)]"
+                            style="background: var(--card-bg); border: 1px solid rgba(128, 128, 128, 0.4);"
+                          >
+                            {list.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div class="task-item-actions">
                     <button
@@ -396,6 +486,8 @@ export function AddTaskScreen({ selectedLanguage, onNavigate }: AddTaskScreenPro
             })
           )}
         </div>
+
+        {loggedIn && <ListManager selectedLanguage={selectedLanguage} />}
       </main>
       {showUnsavedChangesPopup && (
         <Popup

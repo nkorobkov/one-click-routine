@@ -8,6 +8,7 @@ import {
   loadUserSettings
 } from './supabase';
 import { syncTasksOnLogin } from '../store';
+import { syncListsOnLogin, clearListsOnLogout } from './lists';
 import { type LanguageId, saveLanguage } from '../i18n';
 import { type ThemeId, saveTheme, applyTheme } from '../themes';
 
@@ -81,7 +82,10 @@ export async function handleUserLogin(): Promise<void> {
     // 1. Sync tasks from Supabase
     await syncTasksOnLogin();
 
-    // 2. Load and apply user settings
+    // 2. Sync lists from Supabase
+    await syncListsOnLogin();
+
+    // 3. Load and apply user settings
     const settings = await loadUserSettings();
     if (settings) {
       if (settings.language) {
@@ -114,6 +118,7 @@ export async function signOut(): Promise<void> {
   try {
     await supabaseSignOut();
     currentUser.value = null;
+    clearListsOnLogout();
   } catch (error) {
     console.error('[signOut] Error:', error);
     throw error;
@@ -139,6 +144,7 @@ export async function refreshTasksIfLoggedIn(): Promise<void> {
 
   try {
     await syncTasksOnLogin();
+    await syncListsOnLogin();
   } catch (error) {
     console.error('[refreshTasksIfLoggedIn] Error:', error);
   }

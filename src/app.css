@@ -41,6 +41,16 @@
   margin-left: auto;
 }
 
+.time-bar-list-name {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 600;
+  pointer-events: none;
+}
+
 /* Settings Button (Floating) */
 .settings-button {
   position: fixed;
@@ -292,6 +302,70 @@
   background-color: var(--button-hover);
 }
 
+/* Panel Indicators */
+.panel-indicators {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  justify-content: center;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.indicator {
+  padding: 6px 16px;
+  border-radius: 16px;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  opacity: 0.5;
+}
+
+.indicator:hover {
+  opacity: 0.8;
+}
+
+.indicator.active {
+  opacity: 1;
+  background: var(--accent-green);
+  color: var(--text-primary);
+  border-color: var(--accent-green);
+}
+
+/* Swipeable Dashboard Container */
+.dashboard-swipe-container {
+  display: flex;
+  overflow-x: scroll;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  flex: 1;
+  min-height: 0;
+
+  /* Hide scrollbar - Firefox */
+  scrollbar-width: none;
+
+  /* Hide scrollbar - IE/Edge */
+  -ms-overflow-style: none;
+}
+
+/* Hide scrollbar - Chrome/Safari */
+.dashboard-swipe-container::-webkit-scrollbar {
+  display: none;
+}
+
+/* Dashboard Panel */
+.dashboard-panel {
+  min-width: 100vw;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
 /* Dashboard */
 .dashboard {
   flex: 1;
@@ -299,8 +373,6 @@
   flex-direction: column;
   overflow: hidden;
   min-height: 0; /* Allow flex shrinking */
-  height: calc(100vh - 25px);
-  height: calc(100dvh - 25px);
 }
 
 .empty-state {

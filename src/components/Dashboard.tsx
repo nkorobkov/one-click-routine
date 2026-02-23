@@ -4,6 +4,7 @@ import { translations, weekdays, months, type LanguageId } from '../i18n';
 import { currentUser, signInWithGoogle } from '../lib/auth';
 import { Popup } from './Popup';
 import textFit from 'textfit';
+import { lists, getTasksInList } from '../lib/lists';
 
 interface DashboardProps {
   selectedLanguage: LanguageId;
@@ -17,13 +18,24 @@ export function Dashboard({ selectedLanguage, onSettingsClick }: DashboardProps)
   const [currentTime, setCurrentTime] = useState(new Date());
   const [timeAdjustPopup, setTimeAdjustPopup] = useState<{ taskId: string; x: number; y: number } | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [activePanel, setActivePanel] = useState(0);
   const popupRef = useRef<HTMLDivElement>(null);
   const isClosingPopupRef = useRef(false);
   const taskNameRefs = useRef<Map<string, HTMLElement>>(new Map());
-  
+  const swipeContainerRef = useRef<HTMLDivElement>(null);
+
   const t = translations[selectedLanguage];
   const weekdayNames = weekdays[selectedLanguage];
   const monthNames = months[selectedLanguage];
+
+  // Track active panel on scroll
+  const handleScroll = () => {
+    if (!swipeContainerRef.current) return;
+    const scrollLeft = swipeContainerRef.current.scrollLeft;
+    const panelWidth = swipeContainerRef.current.offsetWidth;
+    const newIndex = Math.round(scrollLeft / panelWidth);
+    setActivePanel(newIndex);
+  };
 
   // Close popup handler (simplified - backdrop handles clicks outside)
   const handleClosePopup = () => {
@@ -102,7 +114,7 @@ export function Dashboard({ selectedLanguage, onSettingsClick }: DashboardProps)
     return () => {
       cancelAnimationFrame(frameId);
     };
-  }, [tasks.value, selectedLanguage]);
+  }, [tasks.value, selectedLanguage, activePanel, lists.value]);
 
   // Recalculate textFit on window resize
   useEffect(() => {
@@ -221,6 +233,83 @@ export function Dashboard({ selectedLanguage, onSettingsClick }: DashboardProps)
     // Keep popup open for multiple adjustments
   };
 
+  // Helper function to render task cards
+  const renderTaskCard = (task: Task, panelIndex: number) => {
+    const daysRemaining = getDaysRemaining(task);
+    const isOverdue = daysRemaining <= 0;
+    // Use composite key for ref: panelIndex-taskId to handle same task in multiple panels
+    const refKey = `${panelIndex}-${task.id}`;
+    return (
+      <button
+        key={`${task.id}-${isOverdue}`}
+        class={`task-card ${isOverdue ? 'overdue' : ''}`}
+        onClick={() => handleCompleteTask(task.id)}
+      >
+        {isOverdue ? (
+          <>
+            <div
+              class="task-name-overdue"
+              ref={(el) => {
+                if (el) {
+                  taskNameRefs.current.set(refKey, el);
+                } else {
+                  taskNameRefs.current.delete(refKey);
+                }
+              }}
+            >
+              {t.timeTo} { task.name.toLowerCase()}
+            </div>
+            <span
+              class="task-time"
+              onClick={(e) => handleTimeElementClick(e, task.id)}
+              style="cursor: pointer;"
+            >
+              {t.formatOverdueTime(getDaysOverdue(task))}
+            </span>
+            <div class="task-due-date">{formatDueDate(task)}</div>
+          </>
+        ) : (
+          <>
+            <div
+              class="task-name"
+              ref={(el) => {
+                if (el) {
+                  taskNameRefs.current.set(refKey, el);
+                } else {
+                  taskNameRefs.current.delete(refKey);
+                }
+              }}
+            >
+              {task.name}
+            </div>
+            <span
+              class="task-time"
+              onClick={(e) => handleTimeElementClick(e, task.id)}
+              style="cursor: pointer;"
+            >
+              {t.inDays(t.formatDays(daysRemaining))}
+            </span>
+            <div class="task-due-date">{formatDueDate(task)}</div>
+          </>
+        )}
+      </button>
+    );
+  };
+
+  // Generate panels: one "All Tasks" + one per list (only lists with tasks)
+  const panelsData = [
+    { name: t.allTasks, tasks: tasks.value },
+    ...lists.value
+      .map(list => {
+        const taskIds = getTasksInList(list.id);
+        const listTasks = tasks.value.filter(task => taskIds.includes(task.id));
+        return { name: list.name, tasks: listTasks };
+      })
+      .filter(panel => panel.tasks.length > 0) // Only show lists with tasks
+  ];
+
+  const currentPanelName = panelsData[activePanel]?.name || t.allTasks;
+
   return (
     <div class="app">
       <div class="time-bar">
@@ -228,6 +317,9 @@ export function Dashboard({ selectedLanguage, onSettingsClick }: DashboardProps)
           <span class="time-display">{formatTime(currentTime)}</span>
           <span class="date-display">{formatDate(currentTime)}</span>
         </div>
+        {currentUser.value && lists.value.length > 0 && (
+          <div class="time-bar-list-name">{currentPanelName}</div>
+        )}
       </div>
       <button class="settings-button" onClick={onSettingsClick} aria-label="Settings">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -253,78 +345,29 @@ export function Dashboard({ selectedLanguage, onSettingsClick }: DashboardProps)
           </div>
         </div>
       )}
-      <main class="dashboard">
-        {tasks.value.length === 0 ? (
-          <div class="empty-state">
-            <p>{t.noTasksYet}</p>
-            <button class="button-primary" onClick={onSettingsClick}>
-              {t.addYourFirstTask}
-            </button>
-          </div>
-        ) : (
-          <div class="task-list">
-            {tasks.value.map((task) => {
-              const daysRemaining = getDaysRemaining(task);
-              const isOverdue = daysRemaining <= 0;
-              return (
-                <button
-                  key={`${task.id}-${isOverdue}`}
-                  class={`task-card ${isOverdue ? 'overdue' : ''}`}
-                  onClick={() => handleCompleteTask(task.id)}
-                >
-                  {isOverdue ? (
-                    <>
-                      <div 
-                        class="task-name-overdue"
-                        ref={(el) => {
-                          if (el) {
-                            taskNameRefs.current.set(task.id, el);
-                          } else {
-                            taskNameRefs.current.delete(task.id);
-                          }
-                        }}
-                      >
-                        {t.timeTo} { task.name.toLowerCase()}
-                      </div>
-                      <span 
-                        class="task-time"
-                        onClick={(e) => handleTimeElementClick(e, task.id)}
-                        style="cursor: pointer;"
-                      >
-                        {t.formatOverdueTime(getDaysOverdue(task))}
-                      </span>
-                      <div class="task-due-date">{formatDueDate(task)}</div>
-                    </>
-                  ) : (
-                    <>
-                      <div 
-                        class="task-name"
-                        ref={(el) => {
-                          if (el) {
-                            taskNameRefs.current.set(task.id, el);
-                          } else {
-                            taskNameRefs.current.delete(task.id);
-                          }
-                        }}
-                      >
-                        {task.name}
-                      </div>
-                      <span 
-                        class="task-time"
-                        onClick={(e) => handleTimeElementClick(e, task.id)}
-                        style="cursor: pointer;"
-                      >
-                        {t.inDays(t.formatDays(daysRemaining))}
-                      </span>
-                      <div class="task-due-date">{formatDueDate(task)}</div>
-                    </>
-                  )}
+      {/* Swipeable container */}
+      <div
+        ref={swipeContainerRef}
+        class="dashboard-swipe-container"
+        onScroll={handleScroll}
+      >
+        {panelsData.map((panel, index) => (
+          <main key={index} class="dashboard dashboard-panel">
+            {panel.tasks.length === 0 ? (
+              <div class="empty-state">
+                <p>{t.noTasksYet}</p>
+                <button class="button-primary" onClick={onSettingsClick}>
+                  {t.addYourFirstTask}
                 </button>
-              );
-            })}
-          </div>
-        )}
-      </main>
+              </div>
+            ) : (
+              <div class="task-list">
+                {panel.tasks.map(task => renderTaskCard(task, index))}
+              </div>
+            )}
+          </main>
+        ))}
+      </div>
       {timeAdjustPopup && (
         <>
           <div

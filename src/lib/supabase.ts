@@ -268,3 +268,203 @@ export async function deleteUserTaskForUser(userId: string, taskId: string): Pro
     return false;
   }
 }
+
+// ==========================================
+// List CRUD for Supabase (lists table)
+// ==========================================
+
+export interface SupabaseListRow {
+  id: string;
+  user_id: string;
+  name: string;
+  sort_order: number;
+  color?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface SupabaseTaskListRow {
+  task_id: string;
+  list_id: string;
+  user_id: string;
+  created_at?: string;
+}
+
+// Fetch all lists for the given user, sorted by sort_order
+export async function fetchUserLists(
+  userId: string
+): Promise<{ id: string; name: string; sortOrder: number; color?: string }[] | null> {
+  try {
+    const { data, error } = await supabase
+      .from('lists')
+      .select('*')
+      .eq('user_id', userId)
+      .order('sort_order', { ascending: true });
+
+    if (error) {
+      console.error('[fetchUserLists] Supabase error:', error);
+      return null;
+    }
+
+    return (data || []).map((row: SupabaseListRow) => ({
+      id: row.id,
+      name: row.name,
+      sortOrder: row.sort_order,
+      color: row.color,
+    }));
+  } catch (err) {
+    console.error('[fetchUserLists] Unexpected error:', err);
+    return null;
+  }
+}
+
+// Upsert a single list for a given user
+export async function upsertUserList(
+  userId: string,
+  list: { id: string; name: string; sortOrder: number; color?: string }
+): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('lists')
+      .upsert({
+        id: list.id,
+        user_id: userId,
+        name: list.name,
+        sort_order: list.sortOrder,
+        color: list.color,
+        updated_at: new Date().toISOString(),
+      });
+
+    if (error) {
+      console.error('[upsertUserList] Supabase error:', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('[upsertUserList] Unexpected error:', err);
+    return false;
+  }
+}
+
+// Batch upsert multiple lists for a given user (preserves array index as sort_order)
+export async function upsertUserLists(
+  userId: string,
+  lists: { id: string; name: string; sortOrder: number; color?: string }[]
+): Promise<boolean> {
+  try {
+    const rows = lists.map((list) => ({
+      id: list.id,
+      user_id: userId,
+      name: list.name,
+      sort_order: list.sortOrder,
+      color: list.color,
+      updated_at: new Date().toISOString(),
+    }));
+
+    const { error } = await supabase
+      .from('lists')
+      .upsert(rows);
+
+    if (error) {
+      console.error('[upsertUserLists] Supabase error:', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('[upsertUserLists] Unexpected error:', err);
+    return false;
+  }
+}
+
+// Delete a single list for a given user
+export async function deleteUserList(userId: string, listId: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('lists')
+      .delete()
+      .eq('user_id', userId)
+      .eq('id', listId);
+
+    if (error) {
+      console.error('[deleteUserList] Supabase error:', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('[deleteUserList] Unexpected error:', err);
+    return false;
+  }
+}
+
+// ==========================================
+// Task-List Association CRUD
+// ==========================================
+
+// Fetch all task-list associations for the given user
+export async function fetchTaskLists(
+  userId: string
+): Promise<{ taskId: string; listId: string }[] | null> {
+  try {
+    const { data, error } = await supabase
+      .from('task_lists')
+      .select('*')
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('[fetchTaskLists] Supabase error:', error);
+      return null;
+    }
+
+    return (data || []).map((row: SupabaseTaskListRow) => ({
+      taskId: row.task_id,
+      listId: row.list_id,
+    }));
+  } catch (err) {
+    console.error('[fetchTaskLists] Unexpected error:', err);
+    return null;
+  }
+}
+
+// Set all lists for a task (replaces existing associations)
+export async function setTaskLists(
+  userId: string,
+  taskId: string,
+  listIds: string[]
+): Promise<boolean> {
+  try {
+    // Delete existing associations for this task
+    const { error: deleteError } = await supabase
+      .from('task_lists')
+      .delete()
+      .eq('user_id', userId)
+      .eq('task_id', taskId);
+
+    if (deleteError) {
+      console.error('[setTaskLists] Delete error:', deleteError);
+      return false;
+    }
+
+    // Insert new associations (if any)
+    if (listIds.length > 0) {
+      const rows = listIds.map(listId => ({
+        task_id: taskId,
+        list_id: listId,
+        user_id: userId,
+      }));
+
+      const { error: insertError } = await supabase
+        .from('task_lists')
+        .insert(rows);
+
+      if (insertError) {
+        console.error('[setTaskLists] Insert error:', insertError);
+        return false;
+      }
+    }
+
+    return true;
+  } catch (err) {
+    console.error('[setTaskLists] Unexpected error:', err);
+    return false;
+  }
+}

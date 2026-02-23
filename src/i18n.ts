@@ -77,6 +77,27 @@ export interface Translations {
   addTaskFailed: string;
   deleteTaskFailed: string;
   updateTaskFailed: string;
+
+  // Lists feature
+  lists: string;
+  manageLists: string;
+  addList: string;
+  newListName: string;
+  listNamePlaceholder: string;
+  deleteList: string;
+  deleteListMessage: string;
+  editListName: string;
+  allTasks: string;
+  tasksInList: (count: number) => string;
+  maxListsReached: string;
+  loginToUseLists: string;
+  listDeleted: string;
+  listAdded: string;
+  listUpdated: string;
+  addListFailed: string;
+  deleteListFailed: string;
+  updateListFailed: string;
+  swipeToSeeLists: string;
 }
 
 export const translations: Record<LanguageId, Translations> = {
@@ -175,6 +196,27 @@ export const translations: Record<LanguageId, Translations> = {
     addTaskFailed: 'Failed to add task. Please try again.',
     deleteTaskFailed: 'Failed to delete task. Please try again.',
     updateTaskFailed: 'Failed to update task. Please try again.',
+
+    // Lists feature
+    lists: 'Lists',
+    manageLists: 'Manage Lists',
+    addList: 'Add List',
+    newListName: 'New List',
+    listNamePlaceholder: 'e.g., Home',
+    deleteList: 'Delete list',
+    deleteListMessage: 'Are you sure you want to delete this list? Tasks will not be deleted.',
+    editListName: 'Edit list name',
+    allTasks: 'All Tasks',
+    tasksInList: (count) => `${count} task${count !== 1 ? 's' : ''}`,
+    maxListsReached: 'You can create up to 10 lists',
+    loginToUseLists: 'Log in to organize tasks with lists',
+    listDeleted: 'List deleted',
+    listAdded: 'List added',
+    listUpdated: 'List updated',
+    addListFailed: 'Failed to add list. Please try again.',
+    deleteListFailed: 'Failed to delete list. Please try again.',
+    updateListFailed: 'Failed to update list. Please try again.',
+    swipeToSeeLists: 'Swipe right on dashboard to see task lists',
   },
   ru: {
     timeFormat: (hours, minutes) => {
@@ -293,6 +335,37 @@ export const translations: Record<LanguageId, Translations> = {
     addTaskFailed: 'Не удалось добавить задачу. Попробуйте ещё раз.',
     deleteTaskFailed: 'Не удалось удалить задачу. Попробуйте ещё раз.',
     updateTaskFailed: 'Не удалось обновить задачу. Попробуйте ещё раз.',
+
+    // Lists feature
+    lists: 'Списки',
+    manageLists: 'Управление списками',
+    addList: 'Добавить список',
+    newListName: 'Новый список',
+    listNamePlaceholder: 'Дом, Работа',
+    deleteList: 'Удалить список',
+    deleteListMessage: 'Вы уверены, что хотите удалить этот список? Рутины не будут удалены.',
+    editListName: 'Изменить название списка',
+    allTasks: 'Все рутины',
+    tasksInList: (count) => {
+      const mod10 = count % 10;
+      const mod100 = count % 100;
+      let taskWord = 'рутин';
+      if (mod10 === 1 && mod100 !== 11) {
+        taskWord = 'рутина';
+      } else if ([2, 3, 4].includes(mod10) && ![12, 13, 14].includes(mod100)) {
+        taskWord = 'рутины';
+      }
+      return `${count} ${taskWord}`;
+    },
+    maxListsReached: 'Можно создать до 10 списков',
+    loginToUseLists: 'Войдите, чтобы организовать задачи по спискам',
+    listDeleted: 'Список удалён',
+    listAdded: 'Список добавлен',
+    listUpdated: 'Список обновлён',
+    addListFailed: 'Не удалось добавить список. Попробуйте ещё раз.',
+    deleteListFailed: 'Не удалось удалить список. Попробуйте ещё раз.',
+    updateListFailed: 'Не удалось обновить список. Попробуйте ещё раз.',
+    swipeToSeeLists: 'Свайп вправо на главной, чтобы увидеть списки',
   },
 };
 

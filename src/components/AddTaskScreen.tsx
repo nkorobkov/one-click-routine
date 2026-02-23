@@ -6,7 +6,7 @@ import { Popup } from './Popup';
 import { Header, type View } from './Header';
 import { ListSelector } from './ListSelector';
 import { ListManager } from './ListManager';
-import { lists, setTaskListsForTask, getTaskLists } from '../lib/lists';
+import { setTaskListsForTask, getTaskLists } from '../lib/lists';
 
 interface AddTaskScreenProps {
   selectedLanguage: LanguageId;

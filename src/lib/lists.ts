@@ -283,7 +283,7 @@ export async function syncListsOnLogin(): Promise<void> {
   lists.value = remoteLists;
   taskListAssociations.value = remoteAssociations;
 
-  debug('syncListsOnLogin: synced', remoteLists.length, 'lists and', remoteAssociations.length, 'associations');
+  debug('syncListsOnLogin: synced', remoteLists.length.toString(), 'lists and', remoteAssociations.length.toString(), 'associations');
 }
 
 // ==========================================

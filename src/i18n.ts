@@ -88,6 +88,8 @@ export interface Translations {
   deleteListMessage: string;
   editListName: string;
   allTasks: string;
+  dueTasks: string;
+  noTasksDue: string;
   tasksInList: (count: number) => string;
   maxListsReached: string;
   loginToUseLists: string;
@@ -227,6 +229,8 @@ export const translations: Record<LanguageId, Translations> = {
     deleteListMessage: 'Are you sure you want to delete this list? Tasks will not be deleted.',
     editListName: 'Edit list name',
     allTasks: 'All Tasks',
+    dueTasks: 'Due',
+    noTasksDue: 'No tasks due.',
     tasksInList: (count) => `${count} task${count !== 1 ? 's' : ''}`,
     maxListsReached: 'You can create up to 10 lists',
     loginToUseLists: 'Log in to organize tasks with lists',
@@ -386,6 +390,8 @@ export const translations: Record<LanguageId, Translations> = {
     deleteListMessage: 'Вы уверены, что хотите удалить этот список? Рутины не будут удалены.',
     editListName: 'Изменить название списка',
     allTasks: 'Все рутины',
+    dueTasks: 'Пора',
+    noTasksDue: 'Нет задач к выполнению.',
     tasksInList: (count) => {
       const mod10 = count % 10;
       const mod100 = count % 100;

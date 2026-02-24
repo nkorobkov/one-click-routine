@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useState, useRef } from 'preact/hooks';
 import { route } from 'preact-router';
 import { tasks, completeTask, undoComplete, getDaysRemaining, checkDayChange, getDueDate, getDaysOverdue, adjustTaskTime, retrySyncPending, type Task } from '../store';
 import { translations, weekdays, months, type LanguageId } from '../i18n';
@@ -19,7 +19,7 @@ export function Dashboard({ selectedLanguage }: DashboardProps) {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [timeAdjustPopup, setTimeAdjustPopup] = useState<{ taskId: string; x: number; y: number } | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
-  const [activePanel, setActivePanel] = useState(0);
+  const [activePanel, setActivePanel] = useState(1); // Start at "All Tasks" panel
   const popupRef = useRef<HTMLDivElement>(null);
   const isClosingPopupRef = useRef(false);
   const taskNameRefs = useRef<Map<string, HTMLElement>>(new Map());
@@ -37,6 +37,25 @@ export function Dashboard({ selectedLanguage }: DashboardProps) {
     const newIndex = Math.round(scrollLeft / panelWidth);
     setActivePanel(newIndex);
   };
+
+  // Scroll to "All Tasks" panel (index 1) on mount - use useLayoutEffect to prevent flash
+  useLayoutEffect(() => {
+    if (swipeContainerRef.current) {
+      const container = swipeContainerRef.current;
+      // Temporarily disable smooth scrolling for instant positioning
+      const originalScrollBehavior = container.style.scrollBehavior;
+      container.style.scrollBehavior = 'auto';
+
+      const panelWidth = container.offsetWidth;
+      container.scrollLeft = panelWidth * 1; // Scroll to index 1 (All Tasks)
+
+      // Restore smooth scrolling for user interactions
+      // Use setTimeout to ensure it's restored after the scroll completes
+      setTimeout(() => {
+        container.style.scrollBehavior = originalScrollBehavior;
+      }, 0);
+    }
+  }, []); // Empty dependency array = run once on mount
 
   // Close popup handler (simplified - backdrop handles clicks outside)
   const handleClosePopup = () => {
@@ -297,14 +316,16 @@ export function Dashboard({ selectedLanguage }: DashboardProps) {
     );
   };
 
-  // Generate panels: one "All Tasks" + one per list (only lists with tasks)
+  // Generate panels: "Due Tasks" + "All Tasks" + one per list (only lists with tasks)
+  const dueTasks = tasks.value.filter(task => getDaysRemaining(task) <= 0);
   const panelsData = [
-    { name: t.allTasks, tasks: tasks.value },
+    { name: t.dueTasks, tasks: dueTasks, isDuePanel: true },
+    { name: t.allTasks, tasks: tasks.value, isDuePanel: false },
     ...lists.value
       .map(list => {
         const taskIds = getTasksInList(list.id);
         const listTasks = tasks.value.filter(task => taskIds.includes(task.id));
-        return { name: list.name, tasks: listTasks };
+        return { name: list.name, tasks: listTasks, isDuePanel: false };
       })
       .filter(panel => panel.tasks.length > 0) // Only show lists with tasks
   ];
@@ -359,10 +380,16 @@ export function Dashboard({ selectedLanguage }: DashboardProps) {
           <main key={index} class="dashboard dashboard-panel">
             {panel.tasks.length === 0 ? (
               <div class="empty-state">
-                <p>{t.noTasksYet}</p>
-                <button class="button-primary" onClick={() => route('/add')}>
-                  {t.addYourFirstTask}
-                </button>
+                {panel.isDuePanel ? (
+                  <p>{t.noTasksDue}</p>
+                ) : (
+                  <>
+                    <p>{t.noTasksYet}</p>
+                    <button class="button-primary" onClick={() => route('/add')}>
+                      {t.addYourFirstTask}
+                    </button>
+                  </>
+                )}
               </div>
             ) : (
               <div class="task-list">

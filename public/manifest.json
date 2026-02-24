@@ -1,7 +1,7 @@
 {
-  "name": "Routine Tracker",
-  "short_name": "Routine",
-  "description": "Track recurring routine tasks",
+  "name": "One-Click Routine",
+  "short_name": "One-Click",
+  "description": "Simple routine tracking made easy",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#000000",

@@ -384,10 +384,22 @@ export function Dashboard({ selectedLanguage }: DashboardProps) {
                   <p>{t.noTasksDue}</p>
                 ) : (
                   <>
+                    <h1 class="app-title">One-Click Routine</h1>
+                    <p class="app-description">Recurring tasks that count from completion, not from the calendar.
+                    One-click tracking for maintenance, health, and household routines</p>
                     <p>{t.noTasksYet}</p>
                     <button class="button-primary" onClick={() => route('/add')}>
                       {t.addYourFirstTask}
                     </button>
+                    <div class="empty-state-footer">
+                      <a href="/privacy.html" target="_blank" rel="noopener noreferrer">
+                        Privacy Policy
+                      </a>
+                      <span class="footer-separator">•</span>
+                      <a href="/terms.html" target="_blank" rel="noopener noreferrer">
+                        Terms of Service
+                      </a>
+                    </div>
                   </>
                 )}
               </div>

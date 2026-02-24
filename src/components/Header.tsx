@@ -105,19 +105,21 @@ export function Header({ currentView, onNavigate, selectedLanguage }: HeaderProp
                     </button>
                   </li>
                 )}
-                <li>
-                  <button
-                    class={`transition ${
-                      currentView === 'stats'
-                        ? 'text-[var(--text-primary)] font-bold'
-                        : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                    }`}
-                    style="background-color: transparent; border: none;"
-                    onClick={() => onNavigate('/stats')}
-                  >
-                    {t.stats}
-                  </button>
-                </li>
+                {currentUser.value && (
+                  <li>
+                    <button
+                      class={`transition ${
+                        currentView === 'stats'
+                          ? 'text-[var(--text-primary)] font-bold'
+                          : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                      }`}
+                      style="background-color: transparent; border: none;"
+                      onClick={() => onNavigate('/stats')}
+                    >
+                      {t.stats}
+                    </button>
+                  </li>
+                )}
               </ul>
             </nav>
           </div>

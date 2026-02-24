@@ -1,17 +1,18 @@
 import { useState, useEffect } from 'preact/hooks';
+import { route } from 'preact-router';
 import { themes, type ThemeId, getStoredTheme, saveTheme, applyTheme } from '../themes';
 import { translations, type LanguageId, saveLanguage } from '../i18n';
-import { Header, type View } from './Header';
+import { Header } from './Header';
 import { currentUser } from '../lib/auth';
 import { saveUserSettings } from '../lib/supabase';
 
 interface SettingsPageProps {
   selectedLanguage: LanguageId;
-  onNavigate: (view: View) => void;
+  path?: string; // Required by preact-router
   onLanguageChange: (language: LanguageId) => void;
 }
 
-export function SettingsPage({ selectedLanguage, onNavigate, onLanguageChange }: SettingsPageProps) {
+export function SettingsPage({ selectedLanguage, onLanguageChange }: SettingsPageProps) {
   const [selectedTheme, setSelectedTheme] = useState<ThemeId>(getStoredTheme());
   const t = translations[selectedLanguage];
 
@@ -42,7 +43,7 @@ export function SettingsPage({ selectedLanguage, onNavigate, onLanguageChange }:
     <div class="app">
       <Header
         currentView="settings"
-        onNavigate={onNavigate}
+        onNavigate={(path) => route(path)}
         selectedLanguage={selectedLanguage}
       />
       <main class="setup">

@@ -1,16 +1,17 @@
 import { useState } from 'preact/hooks';
+import { route } from 'preact-router';
 import { tasks, addTask, deleteTask, moveTaskUp, moveTaskDown, updateTask, type Task } from '../store';
 import { translations, type LanguageId } from '../i18n';
 import { currentUser, signInWithGoogle } from '../lib/auth';
 import { Popup } from './Popup';
-import { Header, type View } from './Header';
+import { Header } from './Header';
 import { ListSelector } from './ListSelector';
 import { ListManager } from './ListManager';
 import { setTaskListsForTask, getTaskLists } from '../lib/lists';
 
 interface AddTaskScreenProps {
   selectedLanguage: LanguageId;
-  onNavigate: (view: View) => void;
+  path?: string; // Required by preact-router
 }
 
 interface EditingTask {
@@ -20,7 +21,7 @@ interface EditingTask {
   selectedListIds: string[];
 }
 
-export function AddTaskScreen({ selectedLanguage, onNavigate }: AddTaskScreenProps) {
+export function AddTaskScreen({ selectedLanguage }: AddTaskScreenProps) {
   const [taskName, setTaskName] = useState('');
   const [intervalDays, setIntervalDays] = useState<number | ''>(5);
   const [initialDaysOffset, setInitialDaysOffset] = useState<number | ''>('');
@@ -28,7 +29,7 @@ export function AddTaskScreen({ selectedLanguage, onNavigate }: AddTaskScreenPro
   const [editingTasks, setEditingTasks] = useState<Map<string, EditingTask>>(new Map());
   const [showUnsavedChangesPopup, setShowUnsavedChangesPopup] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
-  const [pendingNavigation, setPendingNavigation] = useState<View | null>(null);
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [savingTaskId, setSavingTaskId] = useState<string | null>(null);
@@ -207,12 +208,12 @@ export function AddTaskScreen({ selectedLanguage, onNavigate }: AddTaskScreenPro
     }
   };
 
-  const handleNavigateWithCheck = (view: View) => {
+  const handleNavigateWithCheck = (path: string) => {
     if (hasUnsavedChanges) {
-      setPendingNavigation(view);
+      setPendingNavigation(path);
       setShowUnsavedChangesPopup(true);
     } else {
-      onNavigate(view);
+      route(path);
     }
   };
 
@@ -235,7 +236,7 @@ export function AddTaskScreen({ selectedLanguage, onNavigate }: AddTaskScreenPro
     setEditingTasks(new Map());
     setShowUnsavedChangesPopup(false);
     if (pendingNavigation) {
-      onNavigate(pendingNavigation);
+      route(pendingNavigation);
       setPendingNavigation(null);
     }
   };
@@ -244,7 +245,7 @@ export function AddTaskScreen({ selectedLanguage, onNavigate }: AddTaskScreenPro
     setEditingTasks(new Map());
     setShowUnsavedChangesPopup(false);
     if (pendingNavigation) {
-      onNavigate(pendingNavigation);
+      route(pendingNavigation);
       setPendingNavigation(null);
     }
   };
@@ -268,8 +269,7 @@ export function AddTaskScreen({ selectedLanguage, onNavigate }: AddTaskScreenPro
     <div class="app">
       <Header
         currentView="addTask"
-        onNavigate={(view) => handleNavigateWithCheck(view)}
-        onDashboardClick={() => handleNavigateWithCheck('dashboard')}
+        onNavigate={handleNavigateWithCheck}
         selectedLanguage={selectedLanguage}
       />
       <main class="setup">

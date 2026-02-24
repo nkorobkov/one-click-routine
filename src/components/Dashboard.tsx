@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'preact/hooks';
+import { route } from 'preact-router';
 import { tasks, completeTask, undoComplete, getDaysRemaining, checkDayChange, getDueDate, getDaysOverdue, adjustTaskTime, retrySyncPending, type Task } from '../store';
 import { translations, weekdays, months, type LanguageId } from '../i18n';
 import { currentUser, signInWithGoogle } from '../lib/auth';
@@ -8,10 +9,10 @@ import { lists, getTasksInList } from '../lib/lists';
 
 interface DashboardProps {
   selectedLanguage: LanguageId;
-  onSettingsClick: () => void;
+  path?: string; // Required by preact-router
 }
 
-export function Dashboard({ selectedLanguage, onSettingsClick }: DashboardProps) {
+export function Dashboard({ selectedLanguage }: DashboardProps) {
   const [undoTaskId, setUndoTaskId] = useState<string | null>(null);
   const [undoPreviousTime, setUndoPreviousTime] = useState<number | null>(null);
   const [undoTimeout, setUndoTimeout] = useState<number | null>(null);
@@ -321,7 +322,7 @@ export function Dashboard({ selectedLanguage, onSettingsClick }: DashboardProps)
           <div class="time-bar-list-name">{currentPanelName}</div>
         )}
       </div>
-      <button class="settings-button" onClick={onSettingsClick} aria-label="Settings">
+      <button class="settings-button" onClick={() => route('/add')} aria-label="Settings">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
           <line x1="12" y1="5" x2="12" y2="19"/>
           <line x1="5" y1="12" x2="19" y2="12"/>
@@ -356,7 +357,7 @@ export function Dashboard({ selectedLanguage, onSettingsClick }: DashboardProps)
             {panel.tasks.length === 0 ? (
               <div class="empty-state">
                 <p>{t.noTasksYet}</p>
-                <button class="button-primary" onClick={onSettingsClick}>
+                <button class="button-primary" onClick={() => route('/add')}>
                   {t.addYourFirstTask}
                 </button>
               </div>

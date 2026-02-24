@@ -1,15 +1,14 @@
 import { useEffect, useState } from 'preact/hooks';
+import Router from 'preact-router';
 import { type LanguageId, getStoredLanguage } from './i18n';
 import { getStoredTheme, applyTheme } from './themes';
 import { refreshTasksIfLoggedIn } from './lib/auth';
 import { Dashboard } from './components/Dashboard';
 import { AddTaskScreen } from './components/AddTaskScreen';
 import { SettingsPage } from './components/SettingsPage';
-import type { View } from './components/Header';
 import './app.css';
 
 export function App() {
-  const [view, setView] = useState<View>('dashboard');
   const [selectedLanguage, setSelectedLanguage] = useState<LanguageId>(getStoredLanguage());
 
   // Apply theme on mount and refresh tasks if logged in
@@ -23,33 +22,15 @@ export function App() {
     setSelectedLanguage(language);
   };
 
-  const handleNavigate = (newView: View) => {
-    setView(newView);
-  };
-
-  if (view === 'dashboard') {
-    return (
-      <Dashboard
-        selectedLanguage={selectedLanguage}
-        onSettingsClick={() => setView('addTask')}
-      />
-    );
-  }
-
-  if (view === 'addTask') {
-    return (
-      <AddTaskScreen
-        selectedLanguage={selectedLanguage}
-        onNavigate={handleNavigate}
-      />
-    );
-  }
-
   return (
-    <SettingsPage
-      selectedLanguage={selectedLanguage}
-      onNavigate={handleNavigate}
-      onLanguageChange={handleLanguageChange}
-    />
+    <Router>
+      <Dashboard path="/" selectedLanguage={selectedLanguage} />
+      <AddTaskScreen path="/add" selectedLanguage={selectedLanguage} />
+      <SettingsPage
+        path="/settings"
+        selectedLanguage={selectedLanguage}
+        onLanguageChange={handleLanguageChange}
+      />
+    </Router>
   );
 }

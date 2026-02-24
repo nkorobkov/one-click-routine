@@ -12,6 +12,7 @@
     "@preact/signals": "^2.5.1",
     "@supabase/supabase-js": "^2.95.3",
     "preact": "^10.27.2",
+    "preact-router": "^4.1.2",
     "textfit": "^2.4.0",
     "tslib": "^2.8.1"
   },

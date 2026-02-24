@@ -836,6 +836,16 @@
 }
 
 /* Undo Toast */
+.undo-toast-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 999;
+  background-color: transparent;
+}
+
 .undo-toast {
   position: fixed;
   bottom: 80px;
@@ -845,6 +855,7 @@
   width: 100%;
   max-width: 400px;
   padding: 0 20px;
+  pointer-events: none;
 }
 
 .undo-toast-content {
@@ -860,6 +871,7 @@
   box-shadow: 0 4px 12px var(--toast-shadow);
   position: relative;
   overflow: hidden;
+  pointer-events: auto;
 }
 
 .undo-toast-text {

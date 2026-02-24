@@ -329,22 +329,25 @@ export function Dashboard({ selectedLanguage }: DashboardProps) {
         </svg>
       </button>
       {undoTaskId && (
-        <div class="undo-toast" onClick={handleUndoDismiss}>
-          <div class="undo-toast-content" onClick={(e) => e.stopPropagation()}>
-            <div class="undo-toast-text">
-              {tasks.value.find((t) => t.id === undoTaskId)?.name} {t.taskCompleted}
-              {!currentUser.value && (
-                <div style="font-size: 0.75em; opacity: 0.8; margin-top: 2px;">{t.loginToSaveMessage}</div>
-              )}
-            </div>
-            <button class="undo-button" onClick={handleUndo} aria-label={t.undo}>
-              {t.undo}
-            </button>
-            <div class="undo-progress-bar" key={undoTaskId}>
-              <div class="undo-progress-fill"></div>
+        <>
+          <div class="undo-toast-backdrop" onClick={handleUndoDismiss} />
+          <div class="undo-toast">
+            <div class="undo-toast-content" onClick={(e) => e.stopPropagation()}>
+              <div class="undo-toast-text">
+                {tasks.value.find((t) => t.id === undoTaskId)?.name} {t.taskCompleted}
+                {!currentUser.value && (
+                  <div style="font-size: 0.75em; opacity: 0.8; margin-top: 2px;">{t.loginToSaveMessage}</div>
+                )}
+              </div>
+              <button class="undo-button" onClick={handleUndo} aria-label={t.undo}>
+                {t.undo}
+              </button>
+              <div class="undo-progress-bar" key={undoTaskId}>
+                <div class="undo-progress-fill"></div>
+              </div>
             </div>
           </div>
-        </div>
+        </>
       )}
       {/* Swipeable container */}
       <div

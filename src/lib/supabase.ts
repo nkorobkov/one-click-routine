@@ -468,3 +468,146 @@ export async function setTaskLists(
     return false;
   }
 }
+
+// ==========================================
+// Task Completions CRUD (task_completions table)
+// ==========================================
+
+export interface TaskCompletion {
+  id: string;
+  task_id: string;
+  user_id: string;
+  completed_at: number; // JavaScript timestamp (milliseconds)
+  due_date: number; // JavaScript timestamp (milliseconds)
+  delay_days: number;
+  task_name: string;
+  interval_days: number;
+  created_at?: string;
+}
+
+/**
+ * Insert a new task completion record
+ * Called by completeTask() in store.ts
+ * @returns completion ID on success, null on failure
+ */
+export async function insertTaskCompletion(
+  userId: string,
+  completion: Omit<TaskCompletion, 'id' | 'user_id' | 'created_at'>
+): Promise<string | null> {
+  try {
+    // Convert JS timestamps (milliseconds) to ISO strings for PostgreSQL
+    const completedAtDate = new Date(completion.completed_at).toISOString();
+    const dueDateDate = new Date(completion.due_date).toISOString();
+
+    const { data, error } = await supabase
+      .from('task_completions')
+      .insert({
+        user_id: userId,
+        task_id: completion.task_id,
+        completed_at: completedAtDate,
+        due_date: dueDateDate,
+        delay_days: completion.delay_days,
+        task_name: completion.task_name,
+        interval_days: completion.interval_days,
+      })
+      .select('id')
+      .single();
+
+    if (error) {
+      console.error('[insertTaskCompletion] Supabase error:', error);
+      return null;
+    }
+
+    return data?.id || null;
+  } catch (err) {
+    console.error('[insertTaskCompletion] Unexpected error:', err);
+    return null;
+  }
+}
+
+/**
+ * Delete a task completion record (for undo)
+ * Called by undoComplete() in store.ts
+ * @returns true on success, false on failure
+ */
+export async function deleteTaskCompletion(
+  completionId: string
+): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from('task_completions')
+      .delete()
+      .eq('id', completionId);
+
+    if (error) {
+      console.error('[deleteTaskCompletion] Supabase error:', error);
+      console.error('[deleteTaskCompletion] Completion ID:', completionId);
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error('[deleteTaskCompletion] Unexpected error:', err);
+    return false;
+  }
+}
+
+/**
+ * Fetch task completions with optional filters
+ * Called by StatsPage component
+ * @returns array of completions ordered by completed_at DESC, null on error
+ */
+export async function fetchTaskCompletions(
+  userId: string,
+  options?: {
+    taskId?: string; // Filter by specific task
+    startDate?: number; // Filter by date range (timestamp in milliseconds)
+    endDate?: number;
+  }
+): Promise<TaskCompletion[] | null> {
+  try {
+    let query = supabase
+      .from('task_completions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('completed_at', { ascending: false });
+
+    // Apply optional filters
+    if (options?.taskId) {
+      query = query.eq('task_id', options.taskId);
+    }
+
+    if (options?.startDate) {
+      const startDateISO = new Date(options.startDate).toISOString();
+      query = query.gte('completed_at', startDateISO);
+    }
+
+    if (options?.endDate) {
+      const endDateISO = new Date(options.endDate).toISOString();
+      query = query.lte('completed_at', endDateISO);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('[fetchTaskCompletions] Supabase error:', error);
+      return null;
+    }
+
+    // Convert PostgreSQL timestamps back to JavaScript timestamps
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      task_id: row.task_id,
+      user_id: row.user_id,
+      completed_at: new Date(row.completed_at).getTime(),
+      due_date: new Date(row.due_date).getTime(),
+      delay_days: parseFloat(row.delay_days),
+      task_name: row.task_name,
+      interval_days: row.interval_days,
+      created_at: row.created_at,
+    }));
+  } catch (err) {
+    console.error('[fetchTaskCompletions] Unexpected error:', err);
+    return null;
+  }
+}

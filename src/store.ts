@@ -1,5 +1,5 @@
 import { signal } from '@preact/signals';
-import { fetchUserTasksForUser, upsertUserTaskForUser, upsertUserTasksForUser, deleteUserTaskForUser } from './lib/supabase';
+import { fetchUserTasksForUser, upsertUserTaskForUser, upsertUserTasksForUser, deleteUserTaskForUser, insertTaskCompletion, deleteTaskCompletion } from './lib/supabase';
 import { isLoggedIn, getCurrentUserId } from './lib/auth';
 
 export interface Task {
@@ -57,6 +57,13 @@ function clearAllPendingSyncs() {
   pendingSyncIds.value = new Set();
   savePendingSyncs(new Set());
 }
+
+// ==========================================
+// Completion tracking (for undo functionality)
+// ==========================================
+// Track the last completion ID for undo (expires after 3 seconds)
+export const lastCompletionId = signal<string | null>(null);
+export const lastCompletionExpiry = signal<number>(0);
 
 // Background sync helper: upsert a single task to Supabase
 async function syncTaskToSupabase(task: Task): Promise<boolean> {
@@ -341,12 +348,23 @@ export async function updateTask(id: string, name: string, intervalDays: number)
 
 // completeTask: OPTIMISTIC — updates local immediately, syncs in background
 export function completeTask(id: string) {
+  const task = tasks.value.find(t => t.id === id);
+  if (!task) return;
+
+  // Calculate delay BEFORE updating the task
+  const completedAt = Date.now();
+  const dueDate = task.nextDueDate;
+  const delayMs = completedAt - dueDate;
+  const delayDays = delayMs / (1000 * 60 * 60 * 24);
+
+  // Update task nextDueDate (existing logic)
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const newDueDate = new Date(today);
+  newDueDate.setDate(today.getDate() + task.intervalDays);
+
   const updated = tasks.value.map((t) => {
     if (t.id === id) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const newDueDate = new Date(today);
-      newDueDate.setDate(today.getDate() + t.intervalDays);
       return { ...t, nextDueDate: newDueDate.getTime() };
     }
     return t;
@@ -354,12 +372,35 @@ export function completeTask(id: string) {
   tasks.value = updated;
   saveTasks(updated);
 
+  // Log completion to Supabase (if logged in)
   if (isLoggedIn()) {
-    const task = updated.find(t => t.id === id);
-    if (task) {
-      syncTaskToSupabase(task).then(success => {
-        if (!success) addPendingSync(id);
+    const userId = getCurrentUserId();
+    if (userId) {
+      // Insert completion record
+      insertTaskCompletion(userId, {
+        task_id: id,
+        completed_at: completedAt,
+        due_date: dueDate,
+        delay_days: delayDays,
+        task_name: task.name,
+        interval_days: task.intervalDays
+      }).then(completionId => {
+        if (completionId) {
+          // Store for potential undo (expires in 3 seconds)
+          lastCompletionId.value = completionId;
+          lastCompletionExpiry.value = Date.now() + 3000;
+        }
+      }).catch(err => {
+        console.error('[completeTask] Failed to log completion:', err);
       });
+
+      // Sync task update to Supabase
+      const updatedTask = updated.find(t => t.id === id);
+      if (updatedTask) {
+        syncTaskToSupabase(updatedTask).then(success => {
+          if (!success) addPendingSync(id);
+        });
+      }
     }
   }
 }
@@ -372,6 +413,18 @@ export function undoComplete(id: string, previousNextDueDate: number) {
   tasks.value = updated;
   saveTasks(updated);
 
+  // Delete the completion record if still within undo window
+  if (isLoggedIn() && lastCompletionId.value && Date.now() < lastCompletionExpiry.value) {
+    deleteTaskCompletion(lastCompletionId.value).catch(err => {
+      console.error('[undoComplete] Failed to delete completion:', err);
+    });
+
+    // Clear the stored completion ID
+    lastCompletionId.value = null;
+    lastCompletionExpiry.value = 0;
+  }
+
+  // Sync task update to Supabase
   if (isLoggedIn()) {
     const task = updated.find(t => t.id === id);
     if (task) {

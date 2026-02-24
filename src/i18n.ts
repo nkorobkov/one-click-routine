@@ -98,6 +98,26 @@ export interface Translations {
   deleteListFailed: string;
   updateListFailed: string;
   swipeToSeeLists: string;
+
+  // Stats page
+  stats: string;
+  statistics: string;
+  globalStatistics: string;
+  perTaskBreakdown: string;
+  totalCompletions: string;
+  daysLate: string;
+  daysEarly: string;
+  onTimeRate: string;
+  completionHistory: string;
+  notEnoughData: string;
+  noCompletionsYet: string;
+  completions: string;
+  onTime: string;
+  intervalSuggestion: string;
+  pleaseLoginToViewStats: string;
+  failedToLoadStats: string;
+  errorLoadingStats: string;
+  chartWillBeImplemented: string;
 }
 
 export const translations: Record<LanguageId, Translations> = {
@@ -217,6 +237,26 @@ export const translations: Record<LanguageId, Translations> = {
     deleteListFailed: 'Failed to delete list. Please try again.',
     updateListFailed: 'Failed to update list. Please try again.',
     swipeToSeeLists: 'Swipe right on dashboard to see task lists',
+
+    // Stats page
+    stats: 'Stats',
+    statistics: 'Statistics',
+    globalStatistics: 'Global Statistics',
+    perTaskBreakdown: 'Per-Task Breakdown',
+    totalCompletions: 'Total Completions',
+    daysLate: 'Days Late',
+    daysEarly: 'Days Early',
+    onTimeRate: 'On-Time Rate',
+    completionHistory: 'Completion History',
+    notEnoughData: 'Not enough data yet. Complete at least 5 tasks to see meaningful statistics.',
+    noCompletionsYet: 'No completions yet. Complete some tasks to see statistics!',
+    completions: 'completions',
+    onTime: 'on time',
+    intervalSuggestion: "You're completing tasks early on average. Consider shortening task intervals to match your actual routine.",
+    pleaseLoginToViewStats: 'Please log in to view statistics',
+    failedToLoadStats: 'Failed to load statistics',
+    errorLoadingStats: 'An error occurred while loading statistics',
+    chartWillBeImplemented: 'Chart will be implemented with uPlot',
   },
   ru: {
     timeFormat: (hours, minutes) => {
@@ -366,6 +406,26 @@ export const translations: Record<LanguageId, Translations> = {
     deleteListFailed: 'Не удалось удалить список. Попробуйте ещё раз.',
     updateListFailed: 'Не удалось обновить список. Попробуйте ещё раз.',
     swipeToSeeLists: 'Свайп вправо на главной, чтобы увидеть списки',
+
+    // Stats page
+    stats: 'Статистика',
+    statistics: 'Статистика',
+    globalStatistics: 'Общая статистика',
+    perTaskBreakdown: 'По задачам',
+    totalCompletions: 'Всего завершений',
+    daysLate: 'Дней опоздания',
+    daysEarly: 'Дней заранее',
+    onTimeRate: 'Процент вовремя',
+    completionHistory: 'История завершений',
+    notEnoughData: 'Недостаточно данных. Завершите хотя бы 5 задач для получения статистики.',
+    noCompletionsYet: 'Нет завершений. Завершите задачи, чтобы увидеть статистику!',
+    completions: 'завершений',
+    onTime: 'вовремя',
+    intervalSuggestion: 'Вы в среднем завершаете задачи раньше срока. Подумайте о сокращении интервалов задач.',
+    pleaseLoginToViewStats: 'Войдите, чтобы увидеть статистику',
+    failedToLoadStats: 'Не удалось загрузить статистику',
+    errorLoadingStats: 'Произошла ошибка при загрузке статистики',
+    chartWillBeImplemented: 'График будет реализован с помощью uPlot',
   },
 };
 

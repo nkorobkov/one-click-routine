@@ -5,6 +5,7 @@ import { getStoredTheme, applyTheme } from './themes';
 import { refreshTasksIfLoggedIn } from './lib/auth';
 import { Dashboard } from './components/Dashboard';
 import { AddTaskScreen } from './components/AddTaskScreen';
+import { StatsPage } from './components/StatsPage';
 import { SettingsPage } from './components/SettingsPage';
 import './app.css';
 
@@ -26,6 +27,7 @@ export function App() {
     <Router>
       <Dashboard path="/" selectedLanguage={selectedLanguage} />
       <AddTaskScreen path="/add" selectedLanguage={selectedLanguage} />
+      <StatsPage path="/stats" selectedLanguage={selectedLanguage} />
       <SettingsPage
         path="/settings"
         selectedLanguage={selectedLanguage}

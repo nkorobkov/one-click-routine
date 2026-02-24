@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'preact/hooks';
 import { currentUser, isAuthInitialized, signInWithGoogle, signOut, handleUserLogin, setOnLoginCallback } from '../lib/auth';
 import { translations, type LanguageId } from '../i18n';
 
-export type View = 'dashboard' | 'addTask' | 'settings';
+export type View = 'dashboard' | 'addTask' | 'stats' | 'settings';
 
 interface HeaderProps {
   currentView: View;
@@ -105,6 +105,19 @@ export function Header({ currentView, onNavigate, selectedLanguage }: HeaderProp
                     </button>
                   </li>
                 )}
+                <li>
+                  <button
+                    class={`transition ${
+                      currentView === 'stats'
+                        ? 'text-[var(--text-primary)] font-bold'
+                        : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                    }`}
+                    style="background-color: transparent; border: none;"
+                    onClick={() => onNavigate('/stats')}
+                  >
+                    {t.stats}
+                  </button>
+                </li>
               </ul>
             </nav>
           </div>

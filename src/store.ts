@@ -351,17 +351,23 @@ export function completeTask(id: string) {
   const task = tasks.value.find(t => t.id === id);
   if (!task) return;
 
+  // Calculate what the new due date would be
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const newDueDate = new Date(today);
+  newDueDate.setDate(today.getDate() + task.intervalDays);
+
+  // If the calculated due date is the same as current, task was already completed today - silently ignore
+  if (newDueDate.getTime() === task.nextDueDate) {
+    debug(`completeTask: Task ${id} already completed today, ignoring`);
+    return;
+  }
+
   // Calculate delay BEFORE updating the task
   const completedAt = Date.now();
   const dueDate = task.nextDueDate;
   const delayMs = completedAt - dueDate;
   const delayDays = delayMs / (1000 * 60 * 60 * 24);
-
-  // Update task nextDueDate (existing logic)
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const newDueDate = new Date(today);
-  newDueDate.setDate(today.getDate() + task.intervalDays);
 
   const updated = tasks.value.map((t) => {
     if (t.id === id) {

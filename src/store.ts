@@ -7,6 +7,7 @@ export interface Task {
   name: string;
   intervalDays: number;
   nextDueDate: number; // Timestamp for when task is next due
+  description?: string; // Optional task description
 }
 
 const STORAGE_KEY = 'one-click-routine-tasks';
@@ -342,6 +343,41 @@ export async function updateTask(id: string, name: string, intervalDays: number)
   }
 }
 
+// updateTaskDescription: PESSIMISTIC — updates description only
+export async function updateTaskDescription(id: string, description: string): Promise<boolean> {
+  try {
+    const task = tasks.value.find(t => t.id === id);
+    if (!task) {
+      debug('updateTaskDescription: Task not found:', id);
+      return false;
+    }
+
+    const updatedTask: Task = { ...task, description: description.trim() };
+
+    if (isLoggedIn()) {
+      const index = tasks.value.findIndex(t => t.id === id);
+      const userId = getCurrentUserId();
+      if (!userId) {
+        debug('updateTaskDescription: logged in but no user id in signal');
+        return false;
+      }
+      const success = await upsertUserTaskForUser(userId, updatedTask, index >= 0 ? index : 0);
+      if (!success) {
+        debug('updateTaskDescription: Supabase upsert failed');
+        return false;
+      }
+    }
+
+    const updated = tasks.value.map(t => t.id === id ? updatedTask : t);
+    tasks.value = updated;
+    saveTasks(updated);
+    return true;
+  } catch (err) {
+    console.error('[updateTaskDescription] Unexpected error:', err);
+    return false;
+  }
+}
+
 // ==========================================
 // Actions — OPTIMISTIC (sync local, async Supabase background)
 // ==========================================
@@ -556,6 +592,7 @@ export async function syncTasksOnLogin(): Promise<void> {
         name: remoteTask.name,               // name from online
         intervalDays: remoteTask.intervalDays, // period from online
         nextDueDate: Math.max(localTask.nextDueDate, remoteTask.nextDueDate), // latest due date
+        description: remoteTask.description || '', // description from online
       });
     } else {
       // Task only exists online — add it
@@ -564,6 +601,7 @@ export async function syncTasksOnLogin(): Promise<void> {
         name: remoteTask.name,
         intervalDays: remoteTask.intervalDays,
         nextDueDate: remoteTask.nextDueDate,
+        description: remoteTask.description || '',
       });
     }
   }

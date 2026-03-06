@@ -153,6 +153,7 @@ export interface SupabaseTaskRow {
   interval_days: number;
   next_due_date: number;
   sort_order: number;
+  description?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -160,7 +161,7 @@ export interface SupabaseTaskRow {
 // Fetch all tasks for the given user, sorted by sort_order
 export async function fetchUserTasksForUser(
   userId: string
-): Promise<{ id: string; name: string; intervalDays: number; nextDueDate: number }[] | null> {
+): Promise<{ id: string; name: string; intervalDays: number; nextDueDate: number; description?: string }[] | null> {
   try {
     const { data, error } = await supabase
       .from('user_tasks')
@@ -178,6 +179,7 @@ export async function fetchUserTasksForUser(
       name: row.name,
       intervalDays: row.interval_days,
       nextDueDate: row.next_due_date,
+      description: row.description || '',
     }));
   } catch (err) {
     console.error('[fetchUserTasksForUser] Unexpected error:', err);
@@ -188,7 +190,7 @@ export async function fetchUserTasksForUser(
 // Upsert a single task for a given user
 export async function upsertUserTaskForUser(
   userId: string,
-  task: { id: string; name: string; intervalDays: number; nextDueDate: number },
+  task: { id: string; name: string; intervalDays: number; nextDueDate: number; description?: string },
   sortOrder: number
 ): Promise<boolean> {
   try {
@@ -200,6 +202,7 @@ export async function upsertUserTaskForUser(
         name: task.name,
         interval_days: task.intervalDays,
         next_due_date: task.nextDueDate,
+        description: task.description || '',
         sort_order: sortOrder,
         updated_at: new Date().toISOString(),
       });
@@ -219,7 +222,7 @@ export async function upsertUserTaskForUser(
 // Batch upsert multiple tasks for a given user (preserves array index as sort_order)
 export async function upsertUserTasksForUser(
   userId: string,
-  tasks: { id: string; name: string; intervalDays: number; nextDueDate: number }[]
+  tasks: { id: string; name: string; intervalDays: number; nextDueDate: number; description?: string }[]
 ): Promise<boolean> {
   try {
     const rows = tasks.map((task, index) => ({
@@ -228,6 +231,7 @@ export async function upsertUserTasksForUser(
       name: task.name,
       interval_days: task.intervalDays,
       next_due_date: task.nextDueDate,
+      description: task.description || '',
       sort_order: index,
       updated_at: new Date().toISOString(),
     }));

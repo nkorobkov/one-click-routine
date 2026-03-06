@@ -1,6 +1,6 @@
 import { useState } from 'preact/hooks';
 import { route } from 'preact-router';
-import { tasks, addTask, deleteTask, moveTaskUp, moveTaskDown, updateTask, type Task } from '../store';
+import { tasks, addTask, deleteTask, moveTaskUp, moveTaskDown, updateTask, updateTaskDescription, type Task } from '../store';
 import { translations, type LanguageId } from '../i18n';
 import { currentUser, signInWithGoogle } from '../lib/auth';
 import { Popup } from './Popup';
@@ -8,6 +8,7 @@ import { Header } from './Header';
 import { ListSelector } from './ListSelector';
 import { ListManager } from './ListManager';
 import { setTaskListsForTask, getTaskLists } from '../lib/lists';
+import { TaskDescriptionPopup } from './TaskDescriptionPopup';
 
 interface AddTaskScreenProps {
   selectedLanguage: LanguageId;
@@ -36,6 +37,7 @@ export function AddTaskScreen({ selectedLanguage }: AddTaskScreenProps) {
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [showLoginRequiredPopup, setShowLoginRequiredPopup] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [descriptionPopup, setDescriptionPopup] = useState<string | null>(null);
 
   const t = translations[selectedLanguage];
   const loggedIn = currentUser.value !== null;
@@ -160,6 +162,14 @@ export function AddTaskScreen({ selectedLanguage }: AddTaskScreenProps) {
         }
       }
     }
+  };
+
+  const handleSaveDescription = async (taskId: string, description: string): Promise<boolean> => {
+    const success = await updateTaskDescription(taskId, description);
+    if (success) {
+      setDescriptionPopup(null);
+    }
+    return success;
   };
 
   const handleUpdateEditingTask = (taskId: string, field: 'name' | 'intervalDays' | 'selectedListIds', value: string | number | '' | string[]) => {
@@ -423,7 +433,12 @@ export function AddTaskScreen({ selectedLanguage }: AddTaskScreenProps) {
               return (
                 <div key={task.id} class="task-item">
                   <div class="task-item-content">
-                    <h3>{task.name}</h3>
+                    <h3
+                      onClick={() => setDescriptionPopup(task.id)}
+                      style="cursor: pointer;"
+                    >
+                      {task.name}
+                    </h3>
                     <p>{t.everyDays(task.intervalDays)}</p>
                     {loggedIn && getTaskLists(task.id).length > 0 && (
                       <div class="flex flex-wrap gap-1 mt-1">
@@ -578,6 +593,19 @@ export function AddTaskScreen({ selectedLanguage }: AddTaskScreenProps) {
           selectedLanguage={selectedLanguage}
         />
       )}
+
+      {/* Task Description Popup */}
+      {descriptionPopup && (() => {
+        const task = tasks.value.find(t => t.id === descriptionPopup);
+        return task ? (
+          <TaskDescriptionPopup
+            task={task}
+            onClose={() => setDescriptionPopup(null)}
+            onSave={handleSaveDescription}
+            selectedLanguage={selectedLanguage}
+          />
+        ) : null;
+      })()}
     </div>
   );
 }

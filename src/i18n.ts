@@ -120,6 +120,17 @@ export interface Translations {
   failedToLoadStats: string;
   errorLoadingStats: string;
   chartWillBeImplemented: string;
+
+  // Task descriptions
+  taskDescription: string;
+  addDescription: string;
+  editDescription: string;
+  noDescriptionYet: string;
+  descriptionPlaceholder: string;
+  saveDescription: string;
+  saveDescriptionFailed: string;
+  cancel: string;
+  close: string;
 }
 
 export const translations: Record<LanguageId, Translations> = {
@@ -261,6 +272,17 @@ export const translations: Record<LanguageId, Translations> = {
     failedToLoadStats: 'Failed to load statistics',
     errorLoadingStats: 'An error occurred while loading statistics',
     chartWillBeImplemented: 'Chart will be implemented with uPlot',
+
+    // Task descriptions
+    taskDescription: 'Description',
+    addDescription: 'Add description',
+    editDescription: 'Edit',
+    noDescriptionYet: 'No description yet',
+    descriptionPlaceholder: 'Add a description for this task...',
+    saveDescription: 'Save',
+    saveDescriptionFailed: 'Failed to save description. Please try again.',
+    cancel: 'Cancel',
+    close: 'Close',
   },
   ru: {
     timeFormat: (hours, minutes) => {
@@ -432,6 +454,17 @@ export const translations: Record<LanguageId, Translations> = {
     failedToLoadStats: 'Не удалось загрузить статистику',
     errorLoadingStats: 'Произошла ошибка при загрузке статистики',
     chartWillBeImplemented: 'График будет реализован с помощью uPlot',
+
+    // Task descriptions
+    taskDescription: 'Описание',
+    addDescription: 'Добавить описание',
+    editDescription: 'Изменить',
+    noDescriptionYet: 'Описание отсутствует',
+    descriptionPlaceholder: 'Добавьте описание задачи...',
+    saveDescription: 'Сохранить',
+    saveDescriptionFailed: 'Не удалось сохранить описание. Попробуйте снова.',
+    cancel: 'Отмена',
+    close: 'Закрыть',
   },
 };
 

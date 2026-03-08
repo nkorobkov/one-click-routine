@@ -1,5 +1,5 @@
 import { signal } from '@preact/signals';
-import { fetchUserTasksForUser, upsertUserTaskForUser, upsertUserTasksForUser, deleteUserTaskForUser, insertTaskCompletion, deleteTaskCompletion } from './lib/supabase';
+import { fetchUserTasksForUser, upsertUserTaskForUser, upsertUserTasksForUser, deleteUserTaskForUser, insertTaskCompletion, deleteTaskCompletion, wasTaskCompletedToday } from './lib/supabase';
 import { isLoggedIn, getCurrentUserId } from './lib/auth';
 
 export interface Task {
@@ -383,7 +383,7 @@ export async function updateTaskDescription(id: string, description: string): Pr
 // ==========================================
 
 // completeTask: OPTIMISTIC — updates local immediately, syncs in background
-export function completeTask(id: string) {
+export async function completeTask(id: string) {
   const task = tasks.value.find(t => t.id === id);
   if (!task) return;
 
@@ -393,10 +393,22 @@ export function completeTask(id: string) {
   const newDueDate = new Date(today);
   newDueDate.setDate(today.getDate() + task.intervalDays);
 
-  // If the calculated due date is the same as current, task was already completed today - silently ignore
+  // Local check: If the calculated due date is the same as current, task was already completed today
   if (newDueDate.getTime() === task.nextDueDate) {
-    debug(`completeTask: Task ${id} already completed today, ignoring`);
+    debug(`completeTask: Task ${id} already completed today (local check), ignoring`);
     return;
+  }
+
+  // Remote check (when logged in): Check if task was already completed today on another surface
+  if (isLoggedIn()) {
+    const userId = getCurrentUserId();
+    if (userId) {
+      const alreadyCompleted = await wasTaskCompletedToday(userId, id);
+      if (alreadyCompleted) {
+        debug(`completeTask: Task ${id} already completed today (remote check), ignoring`);
+        return;
+      }
+    }
   }
 
   // Calculate delay BEFORE updating the task
@@ -553,49 +565,59 @@ export function adjustTaskTime(id: string, daysDelta: number) {
 }
 
 // ==========================================
-// Login sync / merge logic
+// Sync with Supabase (used for login, page reload, and periodic refresh)
 // ==========================================
 
-export async function syncTasksOnLogin(): Promise<void> {
+/**
+ * Sync tasks with Supabase
+ * - Fetches remote tasks and merges with local
+ * - Remote is authoritative for name/interval/description
+ * - Latest nextDueDate wins (max of local and remote)
+ * - Uploads local tasks if remote is empty (first-time login)
+ * - Syncs back to Supabase if local has newer nextDueDate
+ * - Clears pending sync queue after successful reconciliation
+ */
+export async function syncTasksWithSupabase(): Promise<void> {
+  if (!isLoggedIn()) return;
+
   const userId = getCurrentUserId();
   if (!userId) {
-    debug('syncTasksOnLogin: no user id, aborting');
+    debug('syncTasksWithSupabase: no user id');
     return;
   }
 
   const remoteTasks = await fetchUserTasksForUser(userId);
-  if (remoteTasks === null) return; // fetch failed, don't do anything
+  if (remoteTasks === null) {
+    debug('syncTasksWithSupabase: fetch failed');
+    return; // Fetch failed, keep local state
+  }
 
   const localTasks = tasks.value;
 
+  // If remote is empty, upload all local tasks (first-time login)
   if (remoteTasks.length === 0) {
-    // First-time login (no tasks in Supabase) — upload all local tasks as-is
     if (localTasks.length > 0) {
       await upsertUserTasksForUser(userId, localTasks);
     }
-    // Clear pending syncs since we just did a full upload
     clearAllPendingSyncs();
     return;
   }
 
-  // Merge: remote is authoritative for name/period, latest nextDueDate wins
-  const remoteMap = new Map(remoteTasks.map(t => [t.id, t]));
+  // Merge: remote is authoritative for name/interval/description, latest nextDueDate wins
   const mergedTasks: Task[] = [];
-
-  // Process all remote tasks (they define the canonical set)
   for (const remoteTask of remoteTasks) {
     const localTask = localTasks.find(t => t.id === remoteTask.id);
     if (localTask) {
       // Task exists both locally and remotely — merge
       mergedTasks.push({
         id: remoteTask.id,
-        name: remoteTask.name,               // name from online
-        intervalDays: remoteTask.intervalDays, // period from online
+        name: remoteTask.name,               // name from remote
+        intervalDays: remoteTask.intervalDays, // interval from remote
         nextDueDate: Math.max(localTask.nextDueDate, remoteTask.nextDueDate), // latest due date
-        description: remoteTask.description || '', // description from online
+        description: remoteTask.description || '', // description from remote
       });
     } else {
-      // Task only exists online — add it
+      // Task only exists remotely — add it
       mergedTasks.push({
         id: remoteTask.id,
         name: remoteTask.name,
@@ -605,13 +627,14 @@ export async function syncTasksOnLogin(): Promise<void> {
       });
     }
   }
-  // Rule 3.1: local tasks with IDs not online are deleted (not added to merged)
+  // Note: local tasks with IDs not in remote are deleted (not added to merged)
 
   // Update local state
   tasks.value = mergedTasks;
   saveTasks(mergedTasks);
 
-  // If any merged tasks have a different nextDueDate than remote, sync back
+  // Sync back to Supabase if we have newer nextDueDate values
+  const remoteMap = new Map(remoteTasks.map(t => [t.id, t]));
   const needsSync = mergedTasks.some(mt => {
     const remote = remoteMap.get(mt.id);
     return remote && mt.nextDueDate !== remote.nextDueDate;
@@ -621,8 +644,10 @@ export async function syncTasksOnLogin(): Promise<void> {
     await upsertUserTasksForUser(userId, mergedTasks);
   }
 
-  // Clear pending syncs since we just did a full merge
+  // Clear pending syncs after successful reconciliation
   clearAllPendingSyncs();
+
+  debug('syncTasksWithSupabase: synced', String(mergedTasks.length), 'tasks');
 }
 
 // ==========================================
@@ -658,12 +683,17 @@ setInterval(() => {
 // Midnight date change detection
 // ==========================================
 
-export function checkDayChange() {
+export async function checkDayChange() {
   debug('checkDayChange');
   const today = getDateString();
   if (currentDate.value !== today) {
     debug('day changed', currentDate.value, today);
     currentDate.value = today;
+
+    // Refresh tasks from Supabase to sync across devices
+    await syncTasksWithSupabase();
+
+    // Trigger re-render (syncTasksWithSupabase already updates tasks.value, but this ensures it happens even when not logged in)
     tasks.value = [...tasks.value];
   }
 }

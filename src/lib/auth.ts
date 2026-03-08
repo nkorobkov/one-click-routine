@@ -7,7 +7,7 @@ import {
   type User,
   loadUserSettings
 } from './supabase';
-import { syncTasksOnLogin } from '../store';
+import { syncTasksWithSupabase } from '../store';
 import { syncListsOnLogin, clearListsOnLogout } from './lists';
 import { type LanguageId, saveLanguage } from '../i18n';
 import { type ThemeId, saveTheme, applyTheme } from '../themes';
@@ -80,7 +80,7 @@ export function setOnLoginCallback(callback: (user: User) => void): void {
 export async function handleUserLogin(): Promise<void> {
   try {
     // 1. Sync tasks from Supabase
-    await syncTasksOnLogin();
+    await syncTasksWithSupabase();
 
     // 2. Sync lists from Supabase
     await syncListsOnLogin();
@@ -143,7 +143,7 @@ export async function refreshTasksIfLoggedIn(): Promise<void> {
   if (!currentUser.value) return;
 
   try {
-    await syncTasksOnLogin();
+    await syncTasksWithSupabase();
     await syncListsOnLogin();
   } catch (error) {
     console.error('[refreshTasksIfLoggedIn] Error:', error);

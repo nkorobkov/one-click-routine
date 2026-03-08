@@ -557,6 +557,46 @@ export async function deleteTaskCompletion(
 }
 
 /**
+ * Check if a task was already completed today
+ * Used to prevent duplicate completions across surfaces
+ * @returns true if task was completed today, false otherwise
+ */
+export async function wasTaskCompletedToday(
+  userId: string,
+  taskId: string
+): Promise<boolean> {
+  try {
+    // Get start and end of today in local timezone
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStart = today.toISOString();
+
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    const todayEnd = tomorrow.toISOString();
+
+    const { data, error } = await supabase
+      .from('task_completions')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('task_id', taskId)
+      .gte('completed_at', todayStart)
+      .lt('completed_at', todayEnd)
+      .limit(1);
+
+    if (error) {
+      console.error('[wasTaskCompletedToday] Supabase error:', error);
+      return false; // On error, allow completion (fail open)
+    }
+
+    return (data || []).length > 0;
+  } catch (err) {
+    console.error('[wasTaskCompletedToday] Unexpected error:', err);
+    return false; // On error, allow completion (fail open)
+  }
+}
+
+/**
  * Fetch task completions with optional filters
  * Called by StatsPage component
  * @returns array of completions ordered by completed_at DESC, null on error

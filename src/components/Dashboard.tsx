@@ -79,10 +79,10 @@ export function Dashboard({ selectedLanguage }: DashboardProps) {
 
   // Midnight auto-update + pending sync retry: Check every 60 seconds
   useEffect(() => {
-    checkDayChange(); // Initial check
+    checkDayChange().catch(err => console.error('[Dashboard] checkDayChange error:', err)); // Initial check
     retrySyncPending(); // Initial retry of any pending syncs
     const interval = setInterval(() => {
-      checkDayChange();
+      checkDayChange().catch(err => console.error('[Dashboard] checkDayChange error:', err));
       retrySyncPending();
     }, 60000); // Every 60 seconds
 

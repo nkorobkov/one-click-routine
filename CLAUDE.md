@@ -55,17 +55,24 @@ Tasks use a **hybrid pessimistic/optimistic sync strategy**:
 - `updateTask()` - tries Supabase first, then updates local
 
 **Optimistic operations** (update local immediately, sync in background):
-- `completeTask()` - updates local, syncs to Supabase in background
+- `completeTask()` - async, checks Supabase for duplicate completion first (when logged in) to prevent duplicate completions across surfaces, then updates local and syncs in background
 - `undoComplete()` - reverts local, syncs to Supabase in background
 - `moveTaskUp()` / `moveTaskDown()` - reorders local, syncs in background
 - `adjustTaskTime()` - adjusts local, syncs in background
 
 **Pending sync queue**: Failed background syncs are tracked in `pendingSyncIds` signal and retried every 60 seconds via `retrySyncPending()`.
 
-**On login**: `syncTasksOnLogin()` merges local and remote tasks:
-- Remote tasks define the canonical set (local-only tasks are deleted)
-- Name and interval always come from remote
+**Unified sync with Supabase**: All syncing uses a single `syncTasksWithSupabase()` function:
+- Called on login, page reload, and day change
+- Fetches remote tasks and merges with local
+- Remote is authoritative for name/interval/description
 - `nextDueDate` uses the latest value (max of local and remote timestamps)
+- Uploads local tasks if remote is empty (first-time login)
+- Syncs back to Supabase if local has newer nextDueDate values
+- Clears pending sync queue after successful reconciliation
+- No special cases needed - all sync scenarios use the same logic
+
+**Why one function works**: Local changes are already synced when they occur (pessimistic add/update/delete, optimistic complete with background sync). When `syncTasksWithSupabase()` runs, any sync-back operations are no-ops if there are no newer local changes, making it safe and efficient to call from anywhere.
 
 ### View Architecture
 
@@ -106,7 +113,8 @@ Tasks use a **hybrid pessimistic/optimistic sync strategy**:
 
 **Supabase tables**:
 - `user_settings` (id UUID FK to auth.users, settings JSONB) - language & theme
-- `user_tasks` (id, user_id, name, interval_days, next_due_date, sort_order) - normalized task data
+- `user_tasks` (id, user_id, name, interval_days, next_due_date, sort_order, description) - normalized task data
+- `task_completions` (id, user_id, task_id, completed_at, due_date, delay_days, task_name, interval_days) - completion history for stats
 - RLS enabled: users can only access their own rows
 
 ### Theming System

@@ -5,6 +5,7 @@ import { translations, type LanguageId, saveLanguage } from '../i18n';
 import { Header } from './Header';
 import { currentUser } from '../lib/auth';
 import { saveUserSettings } from '../lib/supabase';
+import { taskOrderMode, saveTaskOrderMode, type TaskOrderMode } from '../store';
 
 interface SettingsPageProps {
   selectedLanguage: LanguageId;
@@ -25,7 +26,7 @@ export function SettingsPage({ selectedLanguage, onLanguageChange }: SettingsPag
     onLanguageChange(newLanguage);
     // Sync to Supabase if logged in (fire-and-forget)
     if (currentUser.value) {
-      saveUserSettings({ language: newLanguage, theme: selectedTheme });
+      saveUserSettings({ language: newLanguage, theme: selectedTheme, taskOrderMode: taskOrderMode.value });
     }
   };
 
@@ -35,7 +36,16 @@ export function SettingsPage({ selectedLanguage, onLanguageChange }: SettingsPag
     applyTheme(newTheme);
     // Sync to Supabase if logged in (fire-and-forget)
     if (currentUser.value) {
-      saveUserSettings({ language: selectedLanguage, theme: newTheme });
+      saveUserSettings({ language: selectedLanguage, theme: newTheme, taskOrderMode: taskOrderMode.value });
+    }
+  };
+
+  const handleTaskOrderModeChange = async (newMode: TaskOrderMode) => {
+    taskOrderMode.value = newMode;
+    saveTaskOrderMode(newMode);
+    // Sync to Supabase if logged in (fire-and-forget)
+    if (currentUser.value) {
+      saveUserSettings({ language: selectedLanguage, theme: selectedTheme, taskOrderMode: newMode });
     }
   };
 
@@ -81,6 +91,27 @@ export function SettingsPage({ selectedLanguage, onLanguageChange }: SettingsPag
                 </option>
               ))}
             </select>
+          </div>
+          <div class="form-group">
+            <label>{t.taskOrder}</label>
+            <div class="toggle-container">
+              <label class="toggle-label">
+                <input
+                  type="checkbox"
+                  checked={taskOrderMode.value === 'priority'}
+                  onChange={(e) => {
+                    const isChecked = (e.target as HTMLInputElement).checked;
+                    handleTaskOrderModeChange(isChecked ? 'priority' : 'fixed');
+                  }}
+                  class="toggle-input"
+                />
+                <span class="toggle-slider"></span>
+                <span class="toggle-text">{t.taskOrderModeLabel}</span>
+              </label>
+            </div>
+            <small class="form-hint toggle-description">
+              {taskOrderMode.value === 'priority' ? t.taskOrderPriorityDesc : t.taskOrderFixedDesc}
+            </small>
           </div>
         </div>
       </main>

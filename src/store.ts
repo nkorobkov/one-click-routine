@@ -10,8 +10,11 @@ export interface Task {
   description?: string; // Optional task description
 }
 
+export type TaskOrderMode = 'fixed' | 'priority';
+
 const STORAGE_KEY = 'one-click-routine-tasks';
 const PENDING_SYNC_KEY = 'one-click-routine-pending-sync';
+const TASK_ORDER_MODE_KEY = 'one-click-routine-task-order-mode';
 
 export const debug = (...args: string[]) => {
   if (import.meta.env.DEV) {
@@ -135,9 +138,47 @@ function saveTasks(taskList: Task[]) {
 }
 
 // ==========================================
+// Task Order Mode helpers
+// ==========================================
+function loadTaskOrderMode(): TaskOrderMode {
+  try {
+    const stored = localStorage.getItem(TASK_ORDER_MODE_KEY);
+    if (stored === 'fixed' || stored === 'priority') {
+      return stored;
+    }
+  } catch (e) {
+    console.error('Failed to load task order mode from localStorage:', e);
+  }
+  return 'fixed'; // Default to fixed order
+}
+
+export function saveTaskOrderMode(mode: TaskOrderMode) {
+  try {
+    localStorage.setItem(TASK_ORDER_MODE_KEY, mode);
+  } catch (e) {
+    console.error('Failed to save task order mode to localStorage:', e);
+  }
+}
+
+export function getTaskOrderMode(): TaskOrderMode {
+  return taskOrderMode.value;
+}
+
+// Helper function to get sorted tasks based on the current order mode
+export function getSortedTasks(taskList: Task[] = tasks.value): Task[] {
+  if (taskOrderMode.value === 'priority') {
+    // Sort by nextDueDate (earliest first)
+    return [...taskList].sort((a, b) => a.nextDueDate - b.nextDueDate);
+  }
+  // Return tasks in fixed order (as stored)
+  return taskList;
+}
+
+// ==========================================
 // Signals
 // ==========================================
 export const tasks = signal<Task[]>(loadTasks());
+export const taskOrderMode = signal<TaskOrderMode>(loadTaskOrderMode());
 
 function getDateString(): string {
   const now = new Date();

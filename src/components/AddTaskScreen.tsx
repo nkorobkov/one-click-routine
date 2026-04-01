@@ -1,6 +1,6 @@
 import { useState } from 'preact/hooks';
 import { route } from 'preact-router';
-import { tasks, addTask, deleteTask, moveTaskUp, moveTaskDown, updateTask, updateTaskDescription, type Task } from '../store';
+import { tasks, addTask, deleteTask, moveTaskUp, moveTaskDown, updateTask, updateTaskDescription, getSortedTasks, taskOrderMode, type Task } from '../store';
 import { translations, type LanguageId } from '../i18n';
 import { currentUser, signInWithGoogle } from '../lib/auth';
 import { Popup } from './Popup';
@@ -358,7 +358,9 @@ export function AddTaskScreen({ selectedLanguage }: AddTaskScreenProps) {
           {tasks.value.length === 0 ? (
             <p class="empty-message">{t.noTasksConfigured}</p>
           ) : (
-            tasks.value.map((task, index) => {
+            getSortedTasks().map((task, index) => {
+              // For move buttons, we need the original index in tasks.value
+              const originalIndex = tasks.value.findIndex(t => t.id === task.id);
               const isEditing = editingTasks.has(task.id);
               const editingTask = editingTasks.get(task.id);
               const isSaving = savingTaskId === task.id;
@@ -455,26 +457,30 @@ export function AddTaskScreen({ selectedLanguage }: AddTaskScreenProps) {
                     )}
                   </div>
                   <div class="task-item-actions">
-                    <button
-                      class="button-action button-reorder"
-                      onClick={() => moveTaskUp(task.id)}
-                      disabled={index === 0}
-                      aria-label="Move up"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M18 15l-6-6-6 6"/>
-                      </svg>
-                    </button>
-                    <button
-                      class="button-action button-reorder"
-                      onClick={() => moveTaskDown(task.id)}
-                      disabled={index === tasks.value.length - 1}
-                      aria-label="Move down"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M6 9l6 6 6-6"/>
-                      </svg>
-                    </button>
+                    {taskOrderMode.value === 'fixed' && (
+                      <>
+                        <button
+                          class="button-action button-reorder"
+                          onClick={() => moveTaskUp(task.id)}
+                          disabled={originalIndex === 0}
+                          aria-label="Move up"
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M18 15l-6-6-6 6"/>
+                          </svg>
+                        </button>
+                        <button
+                          class="button-action button-reorder"
+                          onClick={() => moveTaskDown(task.id)}
+                          disabled={originalIndex === tasks.value.length - 1}
+                          aria-label="Move down"
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M6 9l6 6 6-6"/>
+                          </svg>
+                        </button>
+                      </>
+                    )}
                     <button
                       class={`button-action button-edit${!loggedIn ? ' button-disabled' : ''}`}
                       onClick={() => handleEditTask(task)}

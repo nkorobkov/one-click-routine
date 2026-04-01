@@ -7,7 +7,7 @@ import {
   type User,
   loadUserSettings
 } from './supabase';
-import { syncTasksWithSupabase } from '../store';
+import { syncTasksWithSupabase, saveTaskOrderMode, taskOrderMode, type TaskOrderMode } from '../store';
 import { syncListsOnLogin, clearListsOnLogout } from './lists';
 import { type LanguageId, saveLanguage } from '../i18n';
 import { type ThemeId, saveTheme, applyTheme } from '../themes';
@@ -95,6 +95,10 @@ export async function handleUserLogin(): Promise<void> {
       if (settings.theme) {
         saveTheme(settings.theme as ThemeId);
         applyTheme(settings.theme as ThemeId);
+      }
+      if (settings.taskOrderMode) {
+        taskOrderMode.value = settings.taskOrderMode as TaskOrderMode;
+        saveTaskOrderMode(settings.taskOrderMode as TaskOrderMode);
       }
     }
   } catch (error) {

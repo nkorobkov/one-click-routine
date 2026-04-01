@@ -131,6 +131,12 @@ export interface Translations {
   saveDescriptionFailed: string;
   cancel: string;
   close: string;
+
+  // Task ordering
+  taskOrder: string;
+  taskOrderModeLabel: string;
+  taskOrderFixedDesc: string;
+  taskOrderPriorityDesc: string;
 }
 
 export const translations: Record<LanguageId, Translations> = {
@@ -283,6 +289,12 @@ export const translations: Record<LanguageId, Translations> = {
     saveDescriptionFailed: 'Failed to save description. Please try again.',
     cancel: 'Cancel',
     close: 'Close',
+
+    // Task ordering
+    taskOrder: 'Task Order',
+    taskOrderModeLabel: 'Sort by due date',
+    taskOrderFixedDesc: 'Tasks appear in the order you set on the Add Task screen',
+    taskOrderPriorityDesc: 'Tasks are automatically sorted with the soonest due date first',
   },
   ru: {
     timeFormat: (hours, minutes) => {
@@ -465,6 +477,12 @@ export const translations: Record<LanguageId, Translations> = {
     saveDescriptionFailed: 'Не удалось сохранить описание. Попробуйте снова.',
     cancel: 'Отмена',
     close: 'Закрыть',
+
+    // Task ordering
+    taskOrder: 'Порядок задач',
+    taskOrderModeLabel: 'Сортировать по дате выполнения',
+    taskOrderFixedDesc: 'Задачи отображаются в порядке, установленном на экране добавления',
+    taskOrderPriorityDesc: 'Задачи автоматически сортируются по дате выполнения (ближайшие первыми)',
   },
 };
 

@@ -76,6 +76,7 @@ export async function getCurrentUser(): Promise<User | null> {
 export interface UserSettings {
   language?: string;
   theme?: string;
+  taskOrderMode?: 'fixed' | 'priority';
 }
 
 // Load settings from Supabase for the current user

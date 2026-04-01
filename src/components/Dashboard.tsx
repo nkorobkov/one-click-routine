@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useState, useRef } from 'preact/hooks';
 import { route } from 'preact-router';
-import { tasks, completeTask, undoComplete, getDaysRemaining, checkDayChange, getDueDate, getDaysOverdue, adjustTaskTime, retrySyncPending, type Task } from '../store';
+import { tasks, completeTask, undoComplete, getDaysRemaining, checkDayChange, getDueDate, getDaysOverdue, adjustTaskTime, retrySyncPending, getSortedTasks, type Task } from '../store';
 import { translations, weekdays, months, type LanguageId } from '../i18n';
 import { currentUser, signInWithGoogle } from '../lib/auth';
 import { Popup } from './Popup';
@@ -317,14 +317,16 @@ export function Dashboard({ selectedLanguage }: DashboardProps) {
   };
 
   // Generate panels: "Due Tasks" + "All Tasks" + one per list (only lists with tasks)
-  const dueTasks = tasks.value.filter(task => getDaysRemaining(task) <= 0);
+  // Apply sorting based on task order mode
+  const sortedTasks = getSortedTasks();
+  const dueTasks = getSortedTasks(sortedTasks.filter(task => getDaysRemaining(task) <= 0));
   const panelsData = [
     { name: t.dueTasks, tasks: dueTasks, isDuePanel: true },
-    { name: t.allTasks, tasks: tasks.value, isDuePanel: false },
+    { name: t.allTasks, tasks: sortedTasks, isDuePanel: false },
     ...lists.value
       .map(list => {
         const taskIds = getTasksInList(list.id);
-        const listTasks = tasks.value.filter(task => taskIds.includes(task.id));
+        const listTasks = sortedTasks.filter(task => taskIds.includes(task.id));
         return { name: list.name, tasks: listTasks, isDuePanel: false };
       })
       .filter(panel => panel.tasks.length > 0) // Only show lists with tasks

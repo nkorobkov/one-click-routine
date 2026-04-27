@@ -358,7 +358,7 @@ export function AddTaskScreen({ selectedLanguage }: AddTaskScreenProps) {
           {tasks.value.length === 0 ? (
             <p class="empty-message">{t.noTasksConfigured}</p>
           ) : (
-            getSortedTasks().map((task, index) => {
+            getSortedTasks().map((task) => {
               // For move buttons, we need the original index in tasks.value
               const originalIndex = tasks.value.findIndex(t => t.id === task.id);
               const isEditing = editingTasks.has(task.id);

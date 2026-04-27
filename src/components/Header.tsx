@@ -1,22 +1,20 @@
 import { useState, useEffect, useRef } from 'preact/hooks';
 import { currentUser, isAuthInitialized, signInWithGoogle, signOut, handleUserLogin, setOnLoginCallback } from '../lib/auth';
-import { translations, type LanguageId } from '../i18n';
+import { translations, currentLanguage } from '../i18n';
 
 export type View = 'dashboard' | 'addTask' | 'stats' | 'settings';
 
 interface HeaderProps {
   currentView: View;
   onNavigate: (path: string) => void;
-  selectedLanguage: LanguageId;
 }
 
-export function Header({ currentView, onNavigate, selectedLanguage }: HeaderProps) {
+export function Header({ currentView, onNavigate }: HeaderProps) {
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const userDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Read directly from global auth signals - these persist across all navigations!
   const isLoadingAuth = !isAuthInitialized.value;
-  const t = translations[selectedLanguage];
+  const t = translations[currentLanguage.value];
 
   // Set up login callback once
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { type LanguageId, translations } from '../i18n';
+import { translations, currentLanguage } from '../i18n';
 
 interface PopupButton {
   label: string;
@@ -11,11 +11,10 @@ interface PopupProps {
   message: string;
   buttons: PopupButton[];
   onClose: () => void;
-  selectedLanguage: LanguageId;
 }
 
-export function Popup({ title, message, buttons, onClose, selectedLanguage }: PopupProps) {
-  const t = translations[selectedLanguage];
+export function Popup({ title, message, buttons, onClose }: PopupProps) {
+  const t = translations[currentLanguage.value];
 
   return (
     <>

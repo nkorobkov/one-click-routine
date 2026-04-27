@@ -13,7 +13,6 @@ export interface Task {
 export type TaskOrderMode = 'fixed' | 'priority';
 
 const STORAGE_KEY = 'one-click-routine-tasks';
-const PENDING_SYNC_KEY = 'one-click-routine-pending-sync';
 const TASK_ORDER_MODE_KEY = 'one-click-routine-task-order-mode';
 
 export const debug = (...args: string[]) => {
@@ -23,62 +22,18 @@ export const debug = (...args: string[]) => {
 };
 
 // ==========================================
-// Pending sync queue (for optimistic ops)
-// ==========================================
-function loadPendingSyncs(): Set<string> {
-  try {
-    const stored = localStorage.getItem(PENDING_SYNC_KEY);
-    if (stored) {
-      return new Set(JSON.parse(stored));
-    }
-  } catch {}
-  return new Set();
-}
-
-function savePendingSyncs(ids: Set<string>) {
-  try {
-    localStorage.setItem(PENDING_SYNC_KEY, JSON.stringify([...ids]));
-  } catch {}
-}
-
-export const pendingSyncIds = signal<Set<string>>(loadPendingSyncs());
-
-function addPendingSync(taskId: string) {
-  const updated = new Set(pendingSyncIds.value);
-  updated.add(taskId);
-  pendingSyncIds.value = updated;
-  savePendingSyncs(updated);
-}
-
-function removePendingSync(taskId: string) {
-  const updated = new Set(pendingSyncIds.value);
-  updated.delete(taskId);
-  pendingSyncIds.value = updated;
-  savePendingSyncs(updated);
-}
-
-function clearAllPendingSyncs() {
-  pendingSyncIds.value = new Set();
-  savePendingSyncs(new Set());
-}
-
-// ==========================================
 // Completion tracking (for undo functionality)
 // ==========================================
 // Track the last completion ID for undo (expires after 3 seconds)
 export const lastCompletionId = signal<string | null>(null);
 export const lastCompletionExpiry = signal<number>(0);
 
-// Background sync helper: upsert a single task to Supabase
-async function syncTaskToSupabase(task: Task): Promise<boolean> {
+// Background sync helper: upsert a single task to Supabase using its current local index
+function syncTaskToSupabase(task: Task): void {
   const userId = getCurrentUserId();
-  if (!userId) return false;
+  if (!userId) return;
   const index = tasks.value.findIndex(t => t.id === task.id);
-  const success = await upsertUserTaskForUser(userId, task, index >= 0 ? index : 0);
-  if (success) {
-    removePendingSync(task.id);
-  }
-  return success;
+  upsertUserTaskForUser(userId, task, index >= 0 ? index : 0);
 }
 
 // ==========================================
@@ -255,168 +210,81 @@ function calculateNextDueDate(intervalDays: number, initialDaysOffset?: number):
 // Actions — PESSIMISTIC (async, Supabase-first when logged in)
 // ==========================================
 
-// addTask: PESSIMISTIC — tries Supabase first when logged in
+// Run an op against Supabase if logged in. Returns true if not logged in (local-only) or if op succeeded.
+async function withSupabase(op: (userId: string) => Promise<boolean>): Promise<boolean> {
+  if (!isLoggedIn()) return true;
+  const userId = getCurrentUserId();
+  if (!userId) return false;
+  return op(userId);
+}
+
+function applyLocal(updater: (current: Task[]) => Task[]) {
+  const updated = updater(tasks.value);
+  tasks.value = updated;
+  saveTasks(updated);
+}
+
 export async function addTask(name: string, intervalDays: number, initialDaysOffset?: number): Promise<boolean> {
-  try {
-    const nextDueDate = calculateNextDueDate(intervalDays, initialDaysOffset);
-
-    const newTask: Task = {
-      id: generateShortId(),
-      name,
-      intervalDays,
-      nextDueDate,
-    };
-
-    if (isLoggedIn()) {
-      const userId = getCurrentUserId();
-      if (!userId) {
-        debug('addTask: logged in but no user id in signal');
-        return false;
-      }
-      const sortOrder = tasks.value.length;
-      const success = await upsertUserTaskForUser(userId, newTask, sortOrder);
-      if (!success) {
-        debug('addTask: Supabase upsert failed');
-        return false;
-      }
-    }
-
-    const updated = [...tasks.value, newTask];
-    tasks.value = updated;
-    saveTasks(updated);
-    return true;
-  } catch (err) {
-    console.error('[addTask] Unexpected error:', err);
-    return false;
-  }
+  const newTask: Task = {
+    id: generateShortId(),
+    name,
+    intervalDays,
+    nextDueDate: calculateNextDueDate(intervalDays, initialDaysOffset),
+  };
+  const sortOrder = tasks.value.length;
+  const ok = await withSupabase(uid => upsertUserTaskForUser(uid, newTask, sortOrder));
+  if (!ok) return false;
+  applyLocal(current => [...current, newTask]);
+  return true;
 }
 
-// deleteTask: PESSIMISTIC — tries Supabase first when logged in
 export async function deleteTask(id: string): Promise<boolean> {
-  try {
-    if (isLoggedIn()) {
-      const userId = getCurrentUserId();
-      if (!userId) {
-        debug('deleteTask: logged in but no user id in signal');
-        return false;
-      }
-      const success = await deleteUserTaskForUser(userId, id);
-      if (!success) {
-        debug('deleteTask: Supabase delete failed');
-        return false;
-      }
-    }
-
-    const updated = tasks.value.filter((t) => t.id !== id);
-    tasks.value = updated;
-    saveTasks(updated);
-
-    // Sync updated sort orders in background (indices shifted after delete)
-    if (isLoggedIn()) {
-      const userId = getCurrentUserId();
-      if (!userId) {
-        debug('deleteTask: logged in but no user id for sort order sync');
-      } else {
-        upsertUserTasksForUser(userId, updated).catch((err) => {
-        console.error('[deleteTask] Background sort order sync failed:', err);
-        // Sort order sync failed, not critical — will converge on next full sync
-        });
-      }
-    }
-
-    return true;
-  } catch (err) {
-    console.error('[deleteTask] Unexpected error:', err);
-    return false;
-  }
+  const ok = await withSupabase(uid => deleteUserTaskForUser(uid, id));
+  if (!ok) return false;
+  applyLocal(current => current.filter(t => t.id !== id));
+  // Background resync of shifted sort_orders
+  const userId = getCurrentUserId();
+  if (userId) upsertUserTasksForUser(userId, tasks.value);
+  return true;
 }
 
-// updateTask: PESSIMISTIC — tries Supabase first when logged in
 export async function updateTask(id: string, name: string, intervalDays: number): Promise<boolean> {
-  try {
-    const task = tasks.value.find(t => t.id === id);
-    if (!task) {
-      debug('updateTask: Task not found:', id);
-      return false;
-    }
+  const task = tasks.value.find(t => t.id === id);
+  if (!task) return false;
 
-    let updatedTask: Task;
-    if (task.intervalDays !== intervalDays) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const currentDueDate = new Date(task.nextDueDate);
-      currentDueDate.setHours(0, 0, 0, 0);
-
-      const daysRemaining = Math.floor((currentDueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      const daysElapsed = task.intervalDays - daysRemaining;
-      const newDaysRemaining = intervalDays - daysElapsed;
-
-      const newDueDate = new Date(today);
-      newDueDate.setDate(today.getDate() + newDaysRemaining);
-
-      updatedTask = { ...task, name: name.trim(), intervalDays, nextDueDate: newDueDate.getTime() };
-    } else {
-      updatedTask = { ...task, name: name.trim(), intervalDays };
-    }
-
-    if (isLoggedIn()) {
-      const index = tasks.value.findIndex(t => t.id === id);
-      const userId = getCurrentUserId();
-      if (!userId) {
-        debug('updateTask: logged in but no user id in signal');
-        return false;
-      }
-      const success = await upsertUserTaskForUser(userId, updatedTask, index >= 0 ? index : 0);
-      if (!success) {
-        debug('updateTask: Supabase upsert failed');
-        return false;
-      }
-    }
-
-    const updated = tasks.value.map(t => t.id === id ? updatedTask : t);
-    tasks.value = updated;
-    saveTasks(updated);
-    return true;
-  } catch (err) {
-    console.error('[updateTask] Unexpected error:', err);
-    return false;
+  let updatedTask: Task;
+  if (task.intervalDays !== intervalDays) {
+    // Preserve days-elapsed-since-last-completion when interval changes
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const currentDueDate = new Date(task.nextDueDate);
+    currentDueDate.setHours(0, 0, 0, 0);
+    const daysRemaining = Math.floor((currentDueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    const daysElapsed = task.intervalDays - daysRemaining;
+    const newDueDate = new Date(today);
+    newDueDate.setDate(today.getDate() + (intervalDays - daysElapsed));
+    updatedTask = { ...task, name: name.trim(), intervalDays, nextDueDate: newDueDate.getTime() };
+  } else {
+    updatedTask = { ...task, name: name.trim(), intervalDays };
   }
+
+  const index = tasks.value.findIndex(t => t.id === id);
+  const ok = await withSupabase(uid => upsertUserTaskForUser(uid, updatedTask, index >= 0 ? index : 0));
+  if (!ok) return false;
+  applyLocal(current => current.map(t => t.id === id ? updatedTask : t));
+  return true;
 }
 
-// updateTaskDescription: PESSIMISTIC — updates description only
 export async function updateTaskDescription(id: string, description: string): Promise<boolean> {
-  try {
-    const task = tasks.value.find(t => t.id === id);
-    if (!task) {
-      debug('updateTaskDescription: Task not found:', id);
-      return false;
-    }
+  const task = tasks.value.find(t => t.id === id);
+  if (!task) return false;
 
-    const updatedTask: Task = { ...task, description: description.trim() };
-
-    if (isLoggedIn()) {
-      const index = tasks.value.findIndex(t => t.id === id);
-      const userId = getCurrentUserId();
-      if (!userId) {
-        debug('updateTaskDescription: logged in but no user id in signal');
-        return false;
-      }
-      const success = await upsertUserTaskForUser(userId, updatedTask, index >= 0 ? index : 0);
-      if (!success) {
-        debug('updateTaskDescription: Supabase upsert failed');
-        return false;
-      }
-    }
-
-    const updated = tasks.value.map(t => t.id === id ? updatedTask : t);
-    tasks.value = updated;
-    saveTasks(updated);
-    return true;
-  } catch (err) {
-    console.error('[updateTaskDescription] Unexpected error:', err);
-    return false;
-  }
+  const updatedTask: Task = { ...task, description: description.trim() };
+  const index = tasks.value.findIndex(t => t.id === id);
+  const ok = await withSupabase(uid => upsertUserTaskForUser(uid, updatedTask, index >= 0 ? index : 0));
+  if (!ok) return false;
+  applyLocal(current => current.map(t => t.id === id ? updatedTask : t));
+  return true;
 }
 
 // ==========================================
@@ -491,11 +359,7 @@ export async function completeTask(id: string) {
 
       // Sync task update to Supabase
       const updatedTask = updated.find(t => t.id === id);
-      if (updatedTask) {
-        syncTaskToSupabase(updatedTask).then(success => {
-          if (!success) addPendingSync(id);
-        });
-      }
+      if (updatedTask) syncTaskToSupabase(updatedTask);
     }
   }
 }
@@ -510,73 +374,31 @@ export function undoComplete(id: string, previousNextDueDate: number) {
 
   // Delete the completion record if still within undo window
   if (isLoggedIn() && lastCompletionId.value && Date.now() < lastCompletionExpiry.value) {
-    deleteTaskCompletion(lastCompletionId.value).catch(err => {
-      console.error('[undoComplete] Failed to delete completion:', err);
-    });
-
-    // Clear the stored completion ID
+    deleteTaskCompletion(lastCompletionId.value);
     lastCompletionId.value = null;
     lastCompletionExpiry.value = 0;
   }
 
-  // Sync task update to Supabase
   if (isLoggedIn()) {
     const task = updated.find(t => t.id === id);
-    if (task) {
-      syncTaskToSupabase(task).then(success => {
-        if (!success) addPendingSync(id);
-      });
-    }
+    if (task) syncTaskToSupabase(task);
   }
 }
 
-// moveTaskUp: OPTIMISTIC
-export function moveTaskUp(id: string) {
+// swapTasks: OPTIMISTIC — swap a task with its neighbor in the given direction
+export function swapTasks(id: string, direction: -1 | 1) {
   const index = tasks.value.findIndex((t) => t.id === id);
-  if (index > 0) {
-    const updated = [...tasks.value];
-    [updated[index - 1], updated[index]] = [updated[index], updated[index - 1]];
-    tasks.value = updated;
-    saveTasks(updated);
+  const target = index + direction;
+  if (index < 0 || target < 0 || target >= tasks.value.length) return;
 
-    if (isLoggedIn()) {
-      const userId = getCurrentUserId();
-      if (!userId) {
-        debug('moveTaskUp: logged in but no user id in signal');
-      } else {
-        upsertUserTasksForUser(userId, updated).then((success: boolean) => {
-          if (!success) {
-            addPendingSync(updated[index].id);
-            addPendingSync(updated[index - 1].id);
-          }
-        });
-      }
-    }
-  }
-}
+  const updated = [...tasks.value];
+  [updated[index], updated[target]] = [updated[target], updated[index]];
+  tasks.value = updated;
+  saveTasks(updated);
 
-// moveTaskDown: OPTIMISTIC
-export function moveTaskDown(id: string) {
-  const index = tasks.value.findIndex((t) => t.id === id);
-  if (index >= 0 && index < tasks.value.length - 1) {
-    const updated = [...tasks.value];
-    [updated[index], updated[index + 1]] = [updated[index + 1], updated[index]];
-    tasks.value = updated;
-    saveTasks(updated);
-
-    if (isLoggedIn()) {
-      const userId = getCurrentUserId();
-      if (!userId) {
-        debug('moveTaskDown: logged in but no user id in signal');
-      } else {
-        upsertUserTasksForUser(userId, updated).then((success: boolean) => {
-          if (!success) {
-            addPendingSync(updated[index].id);
-            addPendingSync(updated[index + 1].id);
-          }
-        });
-      }
-    }
+  if (isLoggedIn()) {
+    const userId = getCurrentUserId();
+    if (userId) upsertUserTasksForUser(userId, updated);
   }
 }
 
@@ -597,11 +419,7 @@ export function adjustTaskTime(id: string, daysDelta: number) {
 
   if (isLoggedIn()) {
     const task = updated.find(t => t.id === id);
-    if (task) {
-      syncTaskToSupabase(task).then(success => {
-        if (!success) addPendingSync(id);
-      });
-    }
+    if (task) syncTaskToSupabase(task);
   }
 }
 
@@ -640,7 +458,6 @@ export async function syncTasksWithSupabase(): Promise<void> {
     if (localTasks.length > 0) {
       await upsertUserTasksForUser(userId, localTasks);
     }
-    clearAllPendingSyncs();
     return;
   }
 
@@ -685,40 +502,8 @@ export async function syncTasksWithSupabase(): Promise<void> {
     await upsertUserTasksForUser(userId, mergedTasks);
   }
 
-  // Clear pending syncs after successful reconciliation
-  clearAllPendingSyncs();
-
   debug('syncTasksWithSupabase: synced', String(mergedTasks.length), 'tasks');
 }
-
-// ==========================================
-// Pending sync retry (called periodically)
-// ==========================================
-
-export async function retrySyncPending(): Promise<void> {
-  if (!isLoggedIn()) return;
-  if (pendingSyncIds.value.size === 0) return;
-
-  debug('Retrying pending syncs:', [...pendingSyncIds.value].join(', '));
-
-  const idsToSync = [...pendingSyncIds.value];
-  for (const taskId of idsToSync) {
-    const task = tasks.value.find(t => t.id === taskId);
-    if (task) {
-      await syncTaskToSupabase(task);
-    } else {
-      // Task no longer exists locally — remove from pending
-      removePendingSync(taskId);
-    }
-  }
-}
-
-// Auto-retry pending syncs every 60 seconds
-setInterval(() => {
-  retrySyncPending().catch(err => {
-    debug('Pending sync retry error:', String(err));
-  });
-}, 60000);
 
 // ==========================================
 // Midnight date change detection

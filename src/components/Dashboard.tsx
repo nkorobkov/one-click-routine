@@ -1,18 +1,17 @@
 import { useEffect, useLayoutEffect, useState, useRef } from 'preact/hooks';
 import { route } from 'preact-router';
-import { tasks, completeTask, undoComplete, getDaysRemaining, checkDayChange, getDueDate, getDaysOverdue, adjustTaskTime, retrySyncPending, getSortedTasks, type Task } from '../store';
-import { translations, weekdays, months, type LanguageId } from '../i18n';
+import { tasks, completeTask, undoComplete, getDaysRemaining, checkDayChange, getDueDate, getDaysOverdue, adjustTaskTime, getSortedTasks, type Task } from '../store';
+import { translations, weekdays, months, currentLanguage } from '../i18n';
 import { currentUser, signInWithGoogle } from '../lib/auth';
 import { Popup } from './Popup';
 import textFit from 'textfit';
 import { lists, getTasksInList } from '../lib/lists';
 
 interface DashboardProps {
-  selectedLanguage: LanguageId;
   path?: string; // Required by preact-router
 }
 
-export function Dashboard({ selectedLanguage }: DashboardProps) {
+export function Dashboard({}: DashboardProps) {
   const [undoTaskId, setUndoTaskId] = useState<string | null>(null);
   const [undoPreviousTime, setUndoPreviousTime] = useState<number | null>(null);
   const [undoTimeout, setUndoTimeout] = useState<number | null>(null);
@@ -25,9 +24,10 @@ export function Dashboard({ selectedLanguage }: DashboardProps) {
   const taskNameRefs = useRef<Map<string, HTMLElement>>(new Map());
   const swipeContainerRef = useRef<HTMLDivElement>(null);
 
-  const t = translations[selectedLanguage];
-  const weekdayNames = weekdays[selectedLanguage];
-  const monthNames = months[selectedLanguage];
+  const lang = currentLanguage.value;
+  const t = translations[lang];
+  const weekdayNames = weekdays[lang];
+  const monthNames = months[lang];
 
   // Track active panel on scroll
   const handleScroll = () => {
@@ -66,26 +66,14 @@ export function Dashboard({ selectedLanguage }: DashboardProps) {
     }, 0);
   };
 
-  // Update current time every minute
+  // 60s tick: refresh clock + run day-change check
   useEffect(() => {
-    const updateTime = () => {
+    const tick = () => {
       setCurrentTime(new Date());
-    };
-    updateTime(); // Initial update
-    const timeInterval = setInterval(updateTime, 60000); // Every minute
-    
-    return () => clearInterval(timeInterval);
-  }, []);
-
-  // Midnight auto-update + pending sync retry: Check every 60 seconds
-  useEffect(() => {
-    checkDayChange().catch(err => console.error('[Dashboard] checkDayChange error:', err)); // Initial check
-    retrySyncPending(); // Initial retry of any pending syncs
-    const interval = setInterval(() => {
       checkDayChange().catch(err => console.error('[Dashboard] checkDayChange error:', err));
-      retrySyncPending();
-    }, 60000); // Every 60 seconds
-
+    };
+    tick();
+    const interval = setInterval(tick, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -134,7 +122,7 @@ export function Dashboard({ selectedLanguage }: DashboardProps) {
     return () => {
       cancelAnimationFrame(frameId);
     };
-  }, [tasks.value, selectedLanguage, activePanel, lists.value]);
+  }, [tasks.value, lang, activePanel, lists.value]);
 
   // Recalculate textFit on window resize
   useEffect(() => {
@@ -467,7 +455,6 @@ export function Dashboard({ selectedLanguage }: DashboardProps) {
             },
           ]}
           onClose={() => setShowLoginPrompt(false)}
-          selectedLanguage={selectedLanguage}
         />
       )}
     </div>

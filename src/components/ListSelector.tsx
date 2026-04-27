@@ -1,22 +1,21 @@
 import { useState } from 'preact/hooks';
 import { lists, addList } from '../lib/lists';
-import { translations, type LanguageId } from '../i18n';
+import { translations, currentLanguage } from '../i18n';
 
 interface ListSelectorProps {
   selectedListIds: string[];
   onToggle: (listId: string) => void;
   disabled?: boolean;
-  selectedLanguage: LanguageId;
 }
 
-export function ListSelector({ selectedListIds, onToggle, disabled, selectedLanguage }: ListSelectorProps) {
+export function ListSelector({ selectedListIds, onToggle, disabled }: ListSelectorProps) {
   const [isAddingList, setIsAddingList] = useState(false);
   const [newListName, setNewListName] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [justPressedEnter, setJustPressedEnter] = useState(false);
 
-  const t = translations[selectedLanguage];
+  const t = translations[currentLanguage.value];
 
   const handleAddList = async () => {
     // Prevent double-save when Enter triggers both keydown and blur

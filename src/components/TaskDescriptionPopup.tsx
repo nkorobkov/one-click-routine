@@ -1,20 +1,19 @@
 import { useState } from 'preact/hooks';
-import { translations, type LanguageId } from '../i18n';
+import { translations, currentLanguage } from '../i18n';
 import type { Task } from '../store';
 
 interface TaskDescriptionPopupProps {
   task: Task;
   onClose: () => void;
   onSave: (taskId: string, description: string) => Promise<boolean>;
-  selectedLanguage: LanguageId;
 }
 
-export function TaskDescriptionPopup({ task, onClose, onSave, selectedLanguage }: TaskDescriptionPopupProps) {
+export function TaskDescriptionPopup({ task, onClose, onSave }: TaskDescriptionPopupProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [description, setDescription] = useState(task.description || '');
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const t = translations[selectedLanguage];
+  const t = translations[currentLanguage.value];
 
   const handleSave = async () => {
     setIsSaving(true);

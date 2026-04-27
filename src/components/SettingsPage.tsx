@@ -1,51 +1,62 @@
 import { useState, useEffect } from 'preact/hooks';
 import { route } from 'preact-router';
 import { themes, type ThemeId, getStoredTheme, saveTheme, applyTheme } from '../themes';
-import { translations, type LanguageId, saveLanguage } from '../i18n';
+import { translations, type LanguageId, currentLanguage, setLanguage } from '../i18n';
 import { Header } from './Header';
 import { currentUser } from '../lib/auth';
 import { saveUserSettings } from '../lib/supabase';
 import { taskOrderMode, saveTaskOrderMode, type TaskOrderMode } from '../store';
 
 interface SettingsPageProps {
-  selectedLanguage: LanguageId;
-  path?: string; // Required by preact-router
-  onLanguageChange: (language: LanguageId) => void;
+  path?: string;
 }
 
-export function SettingsPage({ selectedLanguage, onLanguageChange }: SettingsPageProps) {
+export function SettingsPage({}: SettingsPageProps) {
   const [selectedTheme, setSelectedTheme] = useState<ThemeId>(getStoredTheme());
-  const t = translations[selectedLanguage];
+  const lang = currentLanguage.value;
+  const t = translations[lang];
 
   useEffect(() => {
     applyTheme(selectedTheme);
   }, [selectedTheme]);
 
-  const handleLanguageChange = async (newLanguage: LanguageId) => {
-    saveLanguage(newLanguage);
-    onLanguageChange(newLanguage);
-    // Sync to Supabase if logged in (fire-and-forget)
+  const syncSettings = () => {
     if (currentUser.value) {
-      saveUserSettings({ language: newLanguage, theme: selectedTheme, taskOrderMode: taskOrderMode.value });
+      saveUserSettings({
+        language: currentLanguage.value,
+        theme: selectedTheme,
+        taskOrderMode: taskOrderMode.value,
+      });
     }
   };
 
-  const handleThemeChange = async (newTheme: ThemeId) => {
+  const handleLanguageChange = (newLanguage: LanguageId) => {
+    setLanguage(newLanguage);
+    syncSettings();
+  };
+
+  const handleThemeChange = (newTheme: ThemeId) => {
     setSelectedTheme(newTheme);
     saveTheme(newTheme);
     applyTheme(newTheme);
-    // Sync to Supabase if logged in (fire-and-forget)
     if (currentUser.value) {
-      saveUserSettings({ language: selectedLanguage, theme: newTheme, taskOrderMode: taskOrderMode.value });
+      saveUserSettings({
+        language: currentLanguage.value,
+        theme: newTheme,
+        taskOrderMode: taskOrderMode.value,
+      });
     }
   };
 
-  const handleTaskOrderModeChange = async (newMode: TaskOrderMode) => {
+  const handleTaskOrderModeChange = (newMode: TaskOrderMode) => {
     taskOrderMode.value = newMode;
     saveTaskOrderMode(newMode);
-    // Sync to Supabase if logged in (fire-and-forget)
     if (currentUser.value) {
-      saveUserSettings({ language: selectedLanguage, theme: selectedTheme, taskOrderMode: newMode });
+      saveUserSettings({
+        language: currentLanguage.value,
+        theme: selectedTheme,
+        taskOrderMode: newMode,
+      });
     }
   };
 
@@ -54,7 +65,6 @@ export function SettingsPage({ selectedLanguage, onLanguageChange }: SettingsPag
       <Header
         currentView="settings"
         onNavigate={(path) => route(path)}
-        selectedLanguage={selectedLanguage}
       />
       <main class="setup">
         <div class="settings-section">
@@ -63,7 +73,7 @@ export function SettingsPage({ selectedLanguage, onLanguageChange }: SettingsPag
             <label for="language-select">{t.language}</label>
             <select
               id="language-select"
-              value={selectedLanguage}
+              value={lang}
               onChange={(e) => {
                 const newLanguage = (e.target as HTMLSelectElement).value as LanguageId;
                 handleLanguageChange(newLanguage);

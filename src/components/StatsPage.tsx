@@ -7,15 +7,14 @@ import { getCurrentUserId } from '../lib/auth';
 import { computeGlobalStats, computeAllTaskStats, computeTaskStats } from '../lib/stats';
 import type { TaskCompletion } from '../lib/supabase';
 import type { GlobalStats, TaskStats } from '../lib/stats';
-import { translations, type LanguageId } from '../i18n';
+import { translations, currentLanguage } from '../i18n';
 
 interface StatsPageProps {
-  selectedLanguage: LanguageId;
   path?: string; // Required by preact-router
 }
 
-export function StatsPage({ selectedLanguage }: StatsPageProps) {
-  const t = translations[selectedLanguage];
+export function StatsPage({}: StatsPageProps) {
+  const t = translations[currentLanguage.value];
 
   // State
   const [loading, setLoading] = useState(true);
@@ -60,7 +59,6 @@ export function StatsPage({ selectedLanguage }: StatsPageProps) {
         <Header
           currentView="stats"
           onNavigate={(path) => route(path)}
-          selectedLanguage={selectedLanguage}
         />
         <main class="setup">
           <div class="text-center py-8">
@@ -78,7 +76,6 @@ export function StatsPage({ selectedLanguage }: StatsPageProps) {
         <Header
           currentView="stats"
           onNavigate={(path) => route(path)}
-          selectedLanguage={selectedLanguage}
         />
         <main class="setup">
           <div class="text-center py-8">
@@ -96,7 +93,6 @@ export function StatsPage({ selectedLanguage }: StatsPageProps) {
         <Header
           currentView="stats"
           onNavigate={(path) => route(path)}
-          selectedLanguage={selectedLanguage}
         />
         <main class="setup">
           <div class="text-center py-8">
@@ -113,7 +109,6 @@ export function StatsPage({ selectedLanguage }: StatsPageProps) {
       <Header
         currentView="stats"
         onNavigate={(path) => route(path)}
-        selectedLanguage={selectedLanguage}
       />
       <main class="setup">
         {/* Global Statistics Panel */}

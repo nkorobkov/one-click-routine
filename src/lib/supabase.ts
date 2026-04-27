@@ -163,29 +163,24 @@ export interface SupabaseTaskRow {
 export async function fetchUserTasksForUser(
   userId: string
 ): Promise<{ id: string; name: string; intervalDays: number; nextDueDate: number; description?: string }[] | null> {
-  try {
-    const { data, error } = await supabase
-      .from('user_tasks')
-      .select('*')
-      .eq('user_id', userId)
-      .order('sort_order', { ascending: true });
+  const { data, error } = await supabase
+    .from('user_tasks')
+    .select('*')
+    .eq('user_id', userId)
+    .order('sort_order', { ascending: true });
 
-    if (error) {
-      console.error('[fetchUserTasks] Supabase error:', error);
-      return null;
-    }
-
-    return (data || []).map((row: SupabaseTaskRow) => ({
-      id: row.id,
-      name: row.name,
-      intervalDays: row.interval_days,
-      nextDueDate: row.next_due_date,
-      description: row.description || '',
-    }));
-  } catch (err) {
-    console.error('[fetchUserTasksForUser] Unexpected error:', err);
+  if (error) {
+    console.error('[fetchUserTasks] Supabase error:', error);
     return null;
   }
+
+  return (data || []).map((row: SupabaseTaskRow) => ({
+    id: row.id,
+    name: row.name,
+    intervalDays: row.interval_days,
+    nextDueDate: row.next_due_date,
+    description: row.description || '',
+  }));
 }
 
 // Upsert a single task for a given user
@@ -194,30 +189,24 @@ export async function upsertUserTaskForUser(
   task: { id: string; name: string; intervalDays: number; nextDueDate: number; description?: string },
   sortOrder: number
 ): Promise<boolean> {
-  try {
-    const { error } = await supabase
-      .from('user_tasks')
-      .upsert({
-        id: task.id,
-        user_id: userId,
-        name: task.name,
-        interval_days: task.intervalDays,
-        next_due_date: task.nextDueDate,
-        description: task.description || '',
-        sort_order: sortOrder,
-        updated_at: new Date().toISOString(),
-      });
+  const { error } = await supabase
+    .from('user_tasks')
+    .upsert({
+      id: task.id,
+      user_id: userId,
+      name: task.name,
+      interval_days: task.intervalDays,
+      next_due_date: task.nextDueDate,
+      description: task.description || '',
+      sort_order: sortOrder,
+      updated_at: new Date().toISOString(),
+    });
 
-    if (error) {
-      console.error('[upsertUserTaskForUser] Supabase error:', error);
-      console.error('[upsertUserTaskForUser] Task data:', { userId, id: task.id, name: task.name, intervalDays: task.intervalDays, nextDueDate: task.nextDueDate, sortOrder });
-      return false;
-    }
-    return true;
-  } catch (err) {
-    console.error('[upsertUserTaskForUser] Unexpected error:', err);
+  if (error) {
+    console.error('[upsertUserTaskForUser] Supabase error:', error);
     return false;
   }
+  return true;
 }
 
 // Batch upsert multiple tasks for a given user (preserves array index as sort_order)
@@ -225,53 +214,39 @@ export async function upsertUserTasksForUser(
   userId: string,
   tasks: { id: string; name: string; intervalDays: number; nextDueDate: number; description?: string }[]
 ): Promise<boolean> {
-  try {
-    const rows = tasks.map((task, index) => ({
-      id: task.id,
-      user_id: userId,
-      name: task.name,
-      interval_days: task.intervalDays,
-      next_due_date: task.nextDueDate,
-      description: task.description || '',
-      sort_order: index,
-      updated_at: new Date().toISOString(),
-    }));
+  const rows = tasks.map((task, index) => ({
+    id: task.id,
+    user_id: userId,
+    name: task.name,
+    interval_days: task.intervalDays,
+    next_due_date: task.nextDueDate,
+    description: task.description || '',
+    sort_order: index,
+    updated_at: new Date().toISOString(),
+  }));
 
-    const { error } = await supabase
-      .from('user_tasks')
-      .upsert(rows);
+  const { error } = await supabase.from('user_tasks').upsert(rows);
 
-    if (error) {
-      console.error('[upsertUserTasksForUser] Supabase error:', error);
-      console.error('[upsertUserTasksForUser] Task count:', tasks.length, 'userId:', userId);
-      return false;
-    }
-    return true;
-  } catch (err) {
-    console.error('[upsertUserTasksForUser] Unexpected error:', err);
+  if (error) {
+    console.error('[upsertUserTasksForUser] Supabase error:', error);
     return false;
   }
+  return true;
 }
 
 // Delete a single task for a given user
 export async function deleteUserTaskForUser(userId: string, taskId: string): Promise<boolean> {
-  try {
-    const { error } = await supabase
-      .from('user_tasks')
-      .delete()
-      .eq('user_id', userId)
-      .eq('id', taskId);
+  const { error } = await supabase
+    .from('user_tasks')
+    .delete()
+    .eq('user_id', userId)
+    .eq('id', taskId);
 
-    if (error) {
-      console.error('[deleteUserTaskForUser] Supabase error:', error);
-      console.error('[deleteUserTaskForUser] Task ID:', taskId, 'userId:', userId);
-      return false;
-    }
-    return true;
-  } catch (err) {
-    console.error('[deleteUserTaskForUser] Unexpected error:', err);
+  if (error) {
+    console.error('[deleteUserTaskForUser] Supabase error:', error);
     return false;
   }
+  return true;
 }
 
 // ==========================================
@@ -299,28 +274,23 @@ export interface SupabaseTaskListRow {
 export async function fetchUserLists(
   userId: string
 ): Promise<{ id: string; name: string; sortOrder: number; color?: string }[] | null> {
-  try {
-    const { data, error } = await supabase
-      .from('lists')
-      .select('*')
-      .eq('user_id', userId)
-      .order('sort_order', { ascending: true });
+  const { data, error } = await supabase
+    .from('lists')
+    .select('*')
+    .eq('user_id', userId)
+    .order('sort_order', { ascending: true });
 
-    if (error) {
-      console.error('[fetchUserLists] Supabase error:', error);
-      return null;
-    }
-
-    return (data || []).map((row: SupabaseListRow) => ({
-      id: row.id,
-      name: row.name,
-      sortOrder: row.sort_order,
-      color: row.color,
-    }));
-  } catch (err) {
-    console.error('[fetchUserLists] Unexpected error:', err);
+  if (error) {
+    console.error('[fetchUserLists] Supabase error:', error);
     return null;
   }
+
+  return (data || []).map((row: SupabaseListRow) => ({
+    id: row.id,
+    name: row.name,
+    sortOrder: row.sort_order,
+    color: row.color,
+  }));
 }
 
 // Upsert a single list for a given user
@@ -328,27 +298,22 @@ export async function upsertUserList(
   userId: string,
   list: { id: string; name: string; sortOrder: number; color?: string }
 ): Promise<boolean> {
-  try {
-    const { error } = await supabase
-      .from('lists')
-      .upsert({
-        id: list.id,
-        user_id: userId,
-        name: list.name,
-        sort_order: list.sortOrder,
-        color: list.color,
-        updated_at: new Date().toISOString(),
-      });
+  const { error } = await supabase
+    .from('lists')
+    .upsert({
+      id: list.id,
+      user_id: userId,
+      name: list.name,
+      sort_order: list.sortOrder,
+      color: list.color,
+      updated_at: new Date().toISOString(),
+    });
 
-    if (error) {
-      console.error('[upsertUserList] Supabase error:', error);
-      return false;
-    }
-    return true;
-  } catch (err) {
-    console.error('[upsertUserList] Unexpected error:', err);
+  if (error) {
+    console.error('[upsertUserList] Supabase error:', error);
     return false;
   }
+  return true;
 }
 
 // Batch upsert multiple lists for a given user (preserves array index as sort_order)
@@ -356,49 +321,37 @@ export async function upsertUserLists(
   userId: string,
   lists: { id: string; name: string; sortOrder: number; color?: string }[]
 ): Promise<boolean> {
-  try {
-    const rows = lists.map((list) => ({
-      id: list.id,
-      user_id: userId,
-      name: list.name,
-      sort_order: list.sortOrder,
-      color: list.color,
-      updated_at: new Date().toISOString(),
-    }));
+  const rows = lists.map((list) => ({
+    id: list.id,
+    user_id: userId,
+    name: list.name,
+    sort_order: list.sortOrder,
+    color: list.color,
+    updated_at: new Date().toISOString(),
+  }));
 
-    const { error } = await supabase
-      .from('lists')
-      .upsert(rows);
+  const { error } = await supabase.from('lists').upsert(rows);
 
-    if (error) {
-      console.error('[upsertUserLists] Supabase error:', error);
-      return false;
-    }
-    return true;
-  } catch (err) {
-    console.error('[upsertUserLists] Unexpected error:', err);
+  if (error) {
+    console.error('[upsertUserLists] Supabase error:', error);
     return false;
   }
+  return true;
 }
 
 // Delete a single list for a given user
 export async function deleteUserList(userId: string, listId: string): Promise<boolean> {
-  try {
-    const { error } = await supabase
-      .from('lists')
-      .delete()
-      .eq('user_id', userId)
-      .eq('id', listId);
+  const { error } = await supabase
+    .from('lists')
+    .delete()
+    .eq('user_id', userId)
+    .eq('id', listId);
 
-    if (error) {
-      console.error('[deleteUserList] Supabase error:', error);
-      return false;
-    }
-    return true;
-  } catch (err) {
-    console.error('[deleteUserList] Unexpected error:', err);
+  if (error) {
+    console.error('[deleteUserList] Supabase error:', error);
     return false;
   }
+  return true;
 }
 
 // ==========================================
@@ -409,25 +362,20 @@ export async function deleteUserList(userId: string, listId: string): Promise<bo
 export async function fetchTaskLists(
   userId: string
 ): Promise<{ taskId: string; listId: string }[] | null> {
-  try {
-    const { data, error } = await supabase
-      .from('task_lists')
-      .select('*')
-      .eq('user_id', userId);
+  const { data, error } = await supabase
+    .from('task_lists')
+    .select('*')
+    .eq('user_id', userId);
 
-    if (error) {
-      console.error('[fetchTaskLists] Supabase error:', error);
-      return null;
-    }
-
-    return (data || []).map((row: SupabaseTaskListRow) => ({
-      taskId: row.task_id,
-      listId: row.list_id,
-    }));
-  } catch (err) {
-    console.error('[fetchTaskLists] Unexpected error:', err);
+  if (error) {
+    console.error('[fetchTaskLists] Supabase error:', error);
     return null;
   }
+
+  return (data || []).map((row: SupabaseTaskListRow) => ({
+    taskId: row.task_id,
+    listId: row.list_id,
+  }));
 }
 
 // Set all lists for a task (replaces existing associations)
@@ -436,42 +384,33 @@ export async function setTaskLists(
   taskId: string,
   listIds: string[]
 ): Promise<boolean> {
-  try {
-    // Delete existing associations for this task
-    const { error: deleteError } = await supabase
-      .from('task_lists')
-      .delete()
-      .eq('user_id', userId)
-      .eq('task_id', taskId);
+  const { error: deleteError } = await supabase
+    .from('task_lists')
+    .delete()
+    .eq('user_id', userId)
+    .eq('task_id', taskId);
 
-    if (deleteError) {
-      console.error('[setTaskLists] Delete error:', deleteError);
-      return false;
-    }
-
-    // Insert new associations (if any)
-    if (listIds.length > 0) {
-      const rows = listIds.map(listId => ({
-        task_id: taskId,
-        list_id: listId,
-        user_id: userId,
-      }));
-
-      const { error: insertError } = await supabase
-        .from('task_lists')
-        .insert(rows);
-
-      if (insertError) {
-        console.error('[setTaskLists] Insert error:', insertError);
-        return false;
-      }
-    }
-
-    return true;
-  } catch (err) {
-    console.error('[setTaskLists] Unexpected error:', err);
+  if (deleteError) {
+    console.error('[setTaskLists] Delete error:', deleteError);
     return false;
   }
+
+  if (listIds.length === 0) return true;
+
+  const rows = listIds.map(listId => ({
+    task_id: taskId,
+    list_id: listId,
+    user_id: userId,
+  }));
+
+  const { error: insertError } = await supabase.from('task_lists').insert(rows);
+
+  if (insertError) {
+    console.error('[setTaskLists] Insert error:', insertError);
+    return false;
+  }
+
+  return true;
 }
 
 // ==========================================
@@ -499,35 +438,26 @@ export async function insertTaskCompletion(
   userId: string,
   completion: Omit<TaskCompletion, 'id' | 'user_id' | 'created_at'>
 ): Promise<string | null> {
-  try {
-    // Convert JS timestamps (milliseconds) to ISO strings for PostgreSQL
-    const completedAtDate = new Date(completion.completed_at).toISOString();
-    const dueDateDate = new Date(completion.due_date).toISOString();
+  const { data, error } = await supabase
+    .from('task_completions')
+    .insert({
+      user_id: userId,
+      task_id: completion.task_id,
+      completed_at: new Date(completion.completed_at).toISOString(),
+      due_date: new Date(completion.due_date).toISOString(),
+      delay_days: completion.delay_days,
+      task_name: completion.task_name,
+      interval_days: completion.interval_days,
+    })
+    .select('id')
+    .single();
 
-    const { data, error } = await supabase
-      .from('task_completions')
-      .insert({
-        user_id: userId,
-        task_id: completion.task_id,
-        completed_at: completedAtDate,
-        due_date: dueDateDate,
-        delay_days: completion.delay_days,
-        task_name: completion.task_name,
-        interval_days: completion.interval_days,
-      })
-      .select('id')
-      .single();
-
-    if (error) {
-      console.error('[insertTaskCompletion] Supabase error:', error);
-      return null;
-    }
-
-    return data?.id || null;
-  } catch (err) {
-    console.error('[insertTaskCompletion] Unexpected error:', err);
+  if (error) {
+    console.error('[insertTaskCompletion] Supabase error:', error);
     return null;
   }
+
+  return data?.id || null;
 }
 
 /**
@@ -538,23 +468,17 @@ export async function insertTaskCompletion(
 export async function deleteTaskCompletion(
   completionId: string
 ): Promise<boolean> {
-  try {
-    const { error } = await supabase
-      .from('task_completions')
-      .delete()
-      .eq('id', completionId);
+  const { error } = await supabase
+    .from('task_completions')
+    .delete()
+    .eq('id', completionId);
 
-    if (error) {
-      console.error('[deleteTaskCompletion] Supabase error:', error);
-      console.error('[deleteTaskCompletion] Completion ID:', completionId);
-      return false;
-    }
-
-    return true;
-  } catch (err) {
-    console.error('[deleteTaskCompletion] Unexpected error:', err);
+  if (error) {
+    console.error('[deleteTaskCompletion] Supabase error:', error);
     return false;
   }
+
+  return true;
 }
 
 /**
@@ -566,35 +490,26 @@ export async function wasTaskCompletedToday(
   userId: string,
   taskId: string
 ): Promise<boolean> {
-  try {
-    // Get start and end of today in local timezone
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStart = today.toISOString();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
 
-    const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
-    const todayEnd = tomorrow.toISOString();
+  const { data, error } = await supabase
+    .from('task_completions')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('task_id', taskId)
+    .gte('completed_at', today.toISOString())
+    .lt('completed_at', tomorrow.toISOString())
+    .limit(1);
 
-    const { data, error } = await supabase
-      .from('task_completions')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('task_id', taskId)
-      .gte('completed_at', todayStart)
-      .lt('completed_at', todayEnd)
-      .limit(1);
-
-    if (error) {
-      console.error('[wasTaskCompletedToday] Supabase error:', error);
-      return false; // On error, allow completion (fail open)
-    }
-
-    return (data || []).length > 0;
-  } catch (err) {
-    console.error('[wasTaskCompletedToday] Unexpected error:', err);
-    return false; // On error, allow completion (fail open)
+  if (error) {
+    console.error('[wasTaskCompletedToday] Supabase error:', error);
+    return false; // fail open
   }
+
+  return (data || []).length > 0;
 }
 
 /**
@@ -602,57 +517,58 @@ export async function wasTaskCompletedToday(
  * Called by StatsPage component
  * @returns array of completions ordered by completed_at DESC, null on error
  */
+interface TaskCompletionRow {
+  id: string;
+  task_id: string;
+  user_id: string;
+  completed_at: string;
+  due_date: string;
+  delay_days: string | number;
+  task_name: string;
+  interval_days: number;
+  created_at?: string;
+}
+
 export async function fetchTaskCompletions(
   userId: string,
   options?: {
-    taskId?: string; // Filter by specific task
-    startDate?: number; // Filter by date range (timestamp in milliseconds)
+    taskId?: string;
+    startDate?: number;
     endDate?: number;
   }
 ): Promise<TaskCompletion[] | null> {
-  try {
-    let query = supabase
-      .from('task_completions')
-      .select('*')
-      .eq('user_id', userId)
-      .order('completed_at', { ascending: false });
+  let query = supabase
+    .from('task_completions')
+    .select('*')
+    .eq('user_id', userId)
+    .order('completed_at', { ascending: false });
 
-    // Apply optional filters
-    if (options?.taskId) {
-      query = query.eq('task_id', options.taskId);
-    }
+  if (options?.taskId) {
+    query = query.eq('task_id', options.taskId);
+  }
+  if (options?.startDate) {
+    query = query.gte('completed_at', new Date(options.startDate).toISOString());
+  }
+  if (options?.endDate) {
+    query = query.lte('completed_at', new Date(options.endDate).toISOString());
+  }
 
-    if (options?.startDate) {
-      const startDateISO = new Date(options.startDate).toISOString();
-      query = query.gte('completed_at', startDateISO);
-    }
+  const { data, error } = await query;
 
-    if (options?.endDate) {
-      const endDateISO = new Date(options.endDate).toISOString();
-      query = query.lte('completed_at', endDateISO);
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error('[fetchTaskCompletions] Supabase error:', error);
-      return null;
-    }
-
-    // Convert PostgreSQL timestamps back to JavaScript timestamps
-    return (data || []).map((row: any) => ({
-      id: row.id,
-      task_id: row.task_id,
-      user_id: row.user_id,
-      completed_at: new Date(row.completed_at).getTime(),
-      due_date: new Date(row.due_date).getTime(),
-      delay_days: parseFloat(row.delay_days),
-      task_name: row.task_name,
-      interval_days: row.interval_days,
-      created_at: row.created_at,
-    }));
-  } catch (err) {
-    console.error('[fetchTaskCompletions] Unexpected error:', err);
+  if (error) {
+    console.error('[fetchTaskCompletions] Supabase error:', error);
     return null;
   }
+
+  return (data || []).map((row: TaskCompletionRow) => ({
+    id: row.id,
+    task_id: row.task_id,
+    user_id: row.user_id,
+    completed_at: new Date(row.completed_at).getTime(),
+    due_date: new Date(row.due_date).getTime(),
+    delay_days: typeof row.delay_days === 'string' ? parseFloat(row.delay_days) : row.delay_days,
+    task_name: row.task_name,
+    interval_days: row.interval_days,
+    created_at: row.created_at,
+  }));
 }

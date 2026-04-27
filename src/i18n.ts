@@ -1,3 +1,5 @@
+import { signal } from '@preact/signals';
+
 export type LanguageId = 'en' | 'ru';
 
 export interface Translations {
@@ -516,5 +518,13 @@ export function saveLanguage(languageId: LanguageId) {
   } catch (e) {
     console.error('Failed to save language to localStorage:', e);
   }
+}
+
+// Single source of truth for the active language. Read via .value, write via setLanguage().
+export const currentLanguage = signal<LanguageId>(getStoredLanguage());
+
+export function setLanguage(languageId: LanguageId) {
+  currentLanguage.value = languageId;
+  saveLanguage(languageId);
 }
 

@@ -9,7 +9,7 @@ import {
 } from './supabase';
 import { syncTasksWithSupabase, saveTaskOrderMode, taskOrderMode, type TaskOrderMode } from '../store';
 import { syncListsOnLogin, clearListsOnLogout } from './lists';
-import { type LanguageId, saveLanguage } from '../i18n';
+import { type LanguageId, setLanguage } from '../i18n';
 import { type ThemeId, saveTheme, applyTheme } from '../themes';
 
 // ==========================================
@@ -89,8 +89,7 @@ export async function handleUserLogin(): Promise<void> {
     const settings = await loadUserSettings();
     if (settings) {
       if (settings.language) {
-        saveLanguage(settings.language as LanguageId);
-        // Note: Language change in UI will happen via app.tsx callback
+        setLanguage(settings.language as LanguageId);
       }
       if (settings.theme) {
         saveTheme(settings.theme as ThemeId);

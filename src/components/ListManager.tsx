@@ -1,14 +1,10 @@
 import { useState } from 'preact/hooks';
 import { lists, moveListUp, moveListDown, updateList, deleteList, getTasksInList } from '../lib/lists';
 import { tasks } from '../store';
-import { translations, type LanguageId } from '../i18n';
+import { translations, currentLanguage } from '../i18n';
 import { Popup } from './Popup';
 
-interface ListManagerProps {
-  selectedLanguage: LanguageId;
-}
-
-export function ListManager({ selectedLanguage }: ListManagerProps) {
+export function ListManager() {
   const [editingListId, setEditingListId] = useState<string | null>(null);
   const [editingListName, setEditingListName] = useState('');
   const [listToDelete, setListToDelete] = useState<string | null>(null);
@@ -16,7 +12,7 @@ export function ListManager({ selectedLanguage }: ListManagerProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const t = translations[selectedLanguage];
+  const t = translations[currentLanguage.value];
 
   if (lists.value.length === 0) {
     return null;
@@ -223,7 +219,6 @@ export function ListManager({ selectedLanguage }: ListManagerProps) {
               },
             ]}
             onClose={() => setListToDelete(null)}
-            selectedLanguage={selectedLanguage}
           />
         );
       })()}

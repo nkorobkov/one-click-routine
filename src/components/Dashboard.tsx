@@ -1,9 +1,10 @@
 import { useEffect, useLayoutEffect, useState, useRef } from 'preact/hooks';
 import { route } from 'preact-router';
-import { tasks, completeTask, undoComplete, getDaysRemaining, checkDayChange, getDueDate, getDaysOverdue, adjustTaskTime, getSortedTasks, type Task } from '../store';
+import { tasks, completeTask, undoComplete, cancelCompletion, getDaysRemaining, checkDayChange, getDueDate, getDaysOverdue, adjustTaskTime, getSortedTasks, lastCompletionId, tasksCompletedToday, refreshTasksCompletedToday, type Task } from '../store';
 import { translations, weekdays, months, currentLanguage } from '../i18n';
 import { currentUser, signInWithGoogle } from '../lib/auth';
 import { Popup } from './Popup';
+import { ChangeDatePopup } from './ChangeDatePopup';
 import textFit from 'textfit';
 import { lists, getTasksInList } from '../lib/lists';
 
@@ -15,10 +16,13 @@ export function Dashboard({}: DashboardProps) {
   const [undoTaskId, setUndoTaskId] = useState<string | null>(null);
   const [undoPreviousTime, setUndoPreviousTime] = useState<number | null>(null);
   const [undoTimeout, setUndoTimeout] = useState<number | null>(null);
+  const [alreadyTodayCompletionId, setAlreadyTodayCompletionId] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [timeAdjustPopup, setTimeAdjustPopup] = useState<{ taskId: string; x: number; y: number } | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [activePanel, setActivePanel] = useState(1); // Start at "All Tasks" panel
+  const [changeDateCompletionId, setChangeDateCompletionId] = useState<string | null>(null);
+  const [toastPaused, setToastPaused] = useState(false);
   const popupRef = useRef<HTMLDivElement>(null);
   const isClosingPopupRef = useRef(false);
   const taskNameRefs = useRef<Map<string, HTMLElement>>(new Map());
@@ -75,6 +79,10 @@ export function Dashboard({}: DashboardProps) {
     tick();
     const interval = setInterval(tick, 60000);
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    refreshTasksCompletedToday();
   }, []);
 
   // Helper function to apply textFit to a single element
@@ -147,47 +155,45 @@ export function Dashboard({}: DashboardProps) {
     return formatDate(getDueDate(task));
   };
 
-  const handleCompleteTask = (id: string) => {
-    // If clicking the same task that's showing undo toast, close toast and complete
+  const startToastAutoDismiss = () => {
+    const timeout = window.setTimeout(() => {
+      handleUndoDismiss();
+    }, 6000);
+    setUndoTimeout(timeout);
+  };
+
+  const handleCompleteTask = async (id: string) => {
     if (undoTaskId === id && undoTaskId !== null) {
       handleUndoDismiss();
-      return; // Task is already completed, just closing the toast
+      return;
     }
-    
-    // If clicking a different task while undo toast is showing, confirm the previous task
+
     if (undoTaskId !== null && undoTaskId !== id) {
-      // Dismiss previous undo toast (this confirms that task)
       handleUndoDismiss();
     }
-    
-    // Store previous nextDueDate before completing
+
     const task = tasks.value.find((t) => t.id === id);
     if (!task) return;
-    
+
     const previousTime = task.nextDueDate;
-    
-    // Complete the task (optimistic — updates local immediately)
-    completeTask(id);
-    
-    // Show undo toast with previous time
+    const result = await completeTask(id);
+
+    if (result.kind === 'already-today') {
+      if (!result.completion) return;
+      setUndoTaskId(id);
+      setUndoPreviousTime(result.completion.dueDate);
+      setAlreadyTodayCompletionId(result.completion.id);
+      if (undoTimeout !== null) clearTimeout(undoTimeout);
+      startToastAutoDismiss();
+      return;
+    }
+
     setUndoTaskId(id);
     setUndoPreviousTime(previousTime);
-    
-    // Clear any existing timeout
-    if (undoTimeout !== null) {
-      clearTimeout(undoTimeout);
-    }
-    
-    // Set timeout to auto-dismiss after 3 seconds
-    const timeout = window.setTimeout(() => {
-      setUndoTaskId(null);
-      setUndoPreviousTime(null);
-      setUndoTimeout(null);
-    }, 3000);
-    
-    setUndoTimeout(timeout);
+    setAlreadyTodayCompletionId(null);
+    if (undoTimeout !== null) clearTimeout(undoTimeout);
+    startToastAutoDismiss();
 
-    // Show login prompt for non-logged-in users
     if (!currentUser.value) {
       setShowLoginPrompt(true);
     }
@@ -196,14 +202,23 @@ export function Dashboard({}: DashboardProps) {
   const handleUndo = () => {
     if (undoTaskId && undoPreviousTime !== null && undoTimeout !== null) {
       clearTimeout(undoTimeout);
-      
-      // Revert the completion using store function (handles Supabase sync)
       undoComplete(undoTaskId, undoPreviousTime);
-      
-      setUndoTaskId(null);
-      setUndoPreviousTime(null);
-      setUndoTimeout(null);
+      handleUndoDismiss();
     }
+  };
+
+  const handleCancelToday = async () => {
+    if (!undoTaskId || !alreadyTodayCompletionId || undoPreviousTime === null) return;
+    if (undoTimeout !== null) clearTimeout(undoTimeout);
+    setToastPaused(true);
+    const ok = await cancelCompletion(undoTaskId, alreadyTodayCompletionId, undoPreviousTime);
+    if (!ok) {
+      // Cancel failed — keep the toast open so the user can retry.
+      setToastPaused(false);
+      startToastAutoDismiss();
+      return;
+    }
+    handleUndoDismiss();
   };
 
   const handleUndoDismiss = () => {
@@ -213,6 +228,41 @@ export function Dashboard({}: DashboardProps) {
     setUndoTaskId(null);
     setUndoPreviousTime(null);
     setUndoTimeout(null);
+    setAlreadyTodayCompletionId(null);
+    setToastPaused(false);
+  };
+
+  const isAlreadyTodayMode = alreadyTodayCompletionId !== null;
+  const popupCompletionId = isAlreadyTodayMode ? alreadyTodayCompletionId : lastCompletionId.value;
+
+  const handleOpenChangeDate = () => {
+    if (!popupCompletionId) return;
+    if (undoTimeout !== null) {
+      clearTimeout(undoTimeout);
+      setUndoTimeout(null);
+    }
+    setToastPaused(true);
+    setChangeDateCompletionId(popupCompletionId);
+  };
+
+  const handleCancelledChangeDate = () => {
+    // In "fresh" mode, dismissing the date picker reverts the completion the
+    // user just made. In "already-today" mode the completion existed before
+    // the popup opened, so we leave it alone and just close the popup.
+    if (!isAlreadyTodayMode && undoTaskId !== null && undoPreviousTime !== null) {
+      undoComplete(undoTaskId, undoPreviousTime);
+      setChangeDateCompletionId(null);
+      handleUndoDismiss();
+      return;
+    }
+    setChangeDateCompletionId(null);
+    setToastPaused(false);
+    handleUndoDismiss();
+  };
+
+  const handleSavedChangeDate = () => {
+    setChangeDateCompletionId(null);
+    handleUndoDismiss();
   };
 
   const handleLoginFromPrompt = async () => {
@@ -245,6 +295,7 @@ export function Dashboard({}: DashboardProps) {
   const renderTaskCard = (task: Task, panelIndex: number) => {
     const daysRemaining = getDaysRemaining(task);
     const isOverdue = daysRemaining <= 0;
+    const wasDoneToday = tasksCompletedToday.value.has(task.id);
     // Use composite key for ref: panelIndex-taskId to handle same task in multiple panels
     const refKey = `${panelIndex}-${task.id}`;
     return (
@@ -253,6 +304,13 @@ export function Dashboard({}: DashboardProps) {
         class={`task-card ${isOverdue ? 'overdue' : ''}`}
         onClick={() => handleCompleteTask(task.id)}
       >
+        {wasDoneToday && (
+          <div class="task-card-done-badge" aria-label={t.alreadyCompletedToday}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+              <path d="M20 6L9 17l-5-5"/>
+            </svg>
+          </div>
+        )}
         {isOverdue ? (
           <>
             <div
@@ -345,20 +403,44 @@ export function Dashboard({}: DashboardProps) {
           <div class="undo-toast">
             <div class="undo-toast-content" onClick={(e) => e.stopPropagation()}>
               <div class="undo-toast-text">
-                {tasks.value.find((t) => t.id === undoTaskId)?.name} {t.taskCompleted}
-                {!currentUser.value && (
+                {tasks.value.find((t) => t.id === undoTaskId)?.name}{' '}
+                {isAlreadyTodayMode ? t.alreadyCompletedToday : t.taskCompleted}
+                {!currentUser.value && !isAlreadyTodayMode && (
                   <div style="font-size: 0.75em; opacity: 0.8; margin-top: 2px;">{t.loginToSaveMessage}</div>
                 )}
               </div>
-              <button class="undo-button" onClick={handleUndo} aria-label={t.undo}>
-                {t.undo}
-              </button>
+              <div class="undo-toast-actions">
+                {currentUser.value && popupCompletionId && (
+                  <button class="undo-button-secondary" onClick={handleOpenChangeDate}>
+                    {t.changeDate}
+                  </button>
+                )}
+                {isAlreadyTodayMode ? (
+                  <button class="undo-button" onClick={handleCancelToday}>
+                    {t.cancelTodaysCompletion}
+                  </button>
+                ) : (
+                  <button class="undo-button" onClick={handleUndo} aria-label={t.undo}>
+                    {t.undo}
+                  </button>
+                )}
+              </div>
               <div class="undo-progress-bar" key={undoTaskId}>
-                <div class="undo-progress-fill"></div>
+                <div class={`undo-progress-fill${toastPaused ? ' paused' : ''}`}></div>
               </div>
             </div>
           </div>
         </>
+      )}
+      {changeDateCompletionId && undoTaskId && undoPreviousTime !== null && (
+        <ChangeDatePopup
+          taskId={undoTaskId}
+          taskName={tasks.value.find((t) => t.id === undoTaskId)?.name || ''}
+          completionId={changeDateCompletionId}
+          dueDate={undoPreviousTime}
+          onCancelled={handleCancelledChangeDate}
+          onSaved={handleSavedChangeDate}
+        />
       )}
       {/* Swipeable container */}
       <div

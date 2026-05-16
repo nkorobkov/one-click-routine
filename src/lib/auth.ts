@@ -7,7 +7,7 @@ import {
   type User,
   loadUserSettings
 } from './supabase';
-import { syncTasksWithSupabase, saveTaskOrderMode, taskOrderMode, type TaskOrderMode } from '../store';
+import { syncTasksWithSupabase, saveTaskOrderMode, taskOrderMode, tasksCompletedToday, type TaskOrderMode } from '../store';
 import { syncListsOnLogin, clearListsOnLogout } from './lists';
 import { type LanguageId, setLanguage } from '../i18n';
 import { type ThemeId, saveTheme, applyTheme } from '../themes';
@@ -121,6 +121,7 @@ export async function signOut(): Promise<void> {
   try {
     await supabaseSignOut();
     currentUser.value = null;
+    tasksCompletedToday.value = new Map();
     clearListsOnLogout();
   } catch (error) {
     console.error('[signOut] Error:', error);

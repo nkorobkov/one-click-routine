@@ -471,6 +471,22 @@
   background-color: var(--overdue-bg-active);
 }
 
+.task-card-done-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: var(--accent-green);
+  color: var(--bg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 1;
+}
+
 
 .task-name {
   flex: 0.95;
@@ -954,7 +970,7 @@
   transform: translateX(-50%);
   z-index: 1000;
   width: 100%;
-  max-width: 400px;
+  max-width: 520px;
   padding: 0 20px;
   pointer-events: none;
 }
@@ -963,12 +979,13 @@
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 12px;
-  padding: 16px 20px;
+  padding: 20px 24px;
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 12px 20px;
   box-shadow: 0 4px 12px var(--toast-shadow);
   position: relative;
   overflow: hidden;
@@ -977,22 +994,31 @@
 
 .undo-toast-text {
   color: var(--text-primary);
-  font-size: 16px;
-  flex: 1;
+  font-size: 17px;
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+.undo-toast-actions {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .undo-button {
   background-color: var(--accent-orange);
   color: var(--text-primary);
-  padding: 0;
   border-radius: 8px;
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
   border: none;
   cursor: pointer;
   transition: all 0.2s;
-  height: 44px;
-  padding: 8px 16px;
+  height: 48px;
+  padding: 10px 20px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1001,6 +1027,31 @@
 
 .undo-button:active {
   background-color: var(--accent-green-dark);
+  transform: scale(0.95);
+}
+
+.undo-button-secondary {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  height: 48px;
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.undo-button-secondary:hover {
+  background-color: var(--button-hover);
+}
+
+.undo-button-secondary:active {
   transform: scale(0.95);
 }
 
@@ -1018,8 +1069,12 @@
   height: 100%;
   background-color: var(--accent-green);
   width: 100%;
-  animation: undoProgress 3s linear forwards;
+  animation: undoProgress 6s linear forwards;
   transform-origin: left;
+}
+
+.undo-progress-fill.paused {
+  animation-play-state: paused;
 }
 
 @keyframes undoProgress {
@@ -1139,6 +1194,114 @@
   cursor: pointer;
   transition: all 0.2s;
   width: 100%;
+}
+
+/* Calendar (used in ChangeDatePopup) */
+.calendar {
+  margin: 12px 0 16px;
+  user-select: none;
+}
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.calendar-nav {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.calendar-nav:hover:not(:disabled) {
+  background-color: var(--button-hover);
+}
+
+.calendar-nav:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.calendar-month-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-transform: capitalize;
+  flex: 1;
+  text-align: center;
+}
+
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.calendar-weekday {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 4px 0;
+  text-transform: uppercase;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.calendar-day {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-primary);
+  border-radius: 8px;
+  aspect-ratio: 1 / 1;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.calendar-day:hover:not(:disabled):not(.is-selected) {
+  background-color: var(--button-hover);
+}
+
+.calendar-day.is-other-month {
+  color: var(--text-secondary);
+  opacity: 0.4;
+}
+
+.calendar-day.is-today {
+  border-color: var(--accent-green);
+}
+
+.calendar-day.is-selected {
+  background-color: var(--accent-green);
+  color: var(--bg-primary);
+  border-color: var(--accent-green);
+}
+
+.calendar-day:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
 }
 
 .popup-actions .button-danger:active {

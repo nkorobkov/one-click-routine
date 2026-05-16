@@ -139,6 +139,14 @@ export interface Translations {
   taskOrderModeLabel: string;
   taskOrderFixedDesc: string;
   taskOrderPriorityDesc: string;
+
+  // Change completion date
+  changeDate: string;
+  changeDatePopupTitle: string;
+  save: string;
+  changeDateFailed: string;
+  alreadyCompletedToday: string;
+  cancelTodaysCompletion: string;
 }
 
 export const translations: Record<LanguageId, Translations> = {
@@ -297,6 +305,14 @@ export const translations: Record<LanguageId, Translations> = {
     taskOrderModeLabel: 'Sort by due date',
     taskOrderFixedDesc: 'Tasks appear in the order you set on the Add Task screen',
     taskOrderPriorityDesc: 'Tasks are automatically sorted with the soonest due date first',
+
+    // Change completion date
+    changeDate: 'Change date',
+    changeDatePopupTitle: 'When was this task completed?',
+    save: 'Save',
+    changeDateFailed: 'Could not update completion date. Try again.',
+    alreadyCompletedToday: 'Already completed today',
+    cancelTodaysCompletion: "Cancel today's completion",
   },
   ru: {
     timeFormat: (hours, minutes) => {
@@ -485,6 +501,14 @@ export const translations: Record<LanguageId, Translations> = {
     taskOrderModeLabel: 'Сортировать по дате выполнения',
     taskOrderFixedDesc: 'Задачи отображаются в порядке, установленном на экране добавления',
     taskOrderPriorityDesc: 'Задачи автоматически сортируются по дате выполнения (ближайшие первыми)',
+
+    // Change completion date
+    changeDate: 'Изменить дату',
+    changeDatePopupTitle: 'Когда задача была выполнена?',
+    save: 'Сохранить',
+    changeDateFailed: 'Не удалось обновить дату выполнения. Попробуйте снова.',
+    alreadyCompletedToday: 'Уже выполнено сегодня',
+    cancelTodaysCompletion: 'Отменить сегодняшнее выполнение',
   },
 };
 

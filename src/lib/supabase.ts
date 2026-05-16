@@ -436,11 +436,12 @@ export interface TaskCompletion {
  */
 export async function insertTaskCompletion(
   userId: string,
-  completion: Omit<TaskCompletion, 'id' | 'user_id' | 'created_at'>
+  completion: Omit<TaskCompletion, 'user_id' | 'created_at'>
 ): Promise<string | null> {
   const { data, error } = await supabase
     .from('task_completions')
     .insert({
+      id: completion.id,
       user_id: userId,
       task_id: completion.task_id,
       completed_at: new Date(completion.completed_at).toISOString(),
@@ -468,28 +469,101 @@ export async function insertTaskCompletion(
 export async function deleteTaskCompletion(
   completionId: string
 ): Promise<boolean> {
-  const { error } = await supabase
+  // .select() returns the deleted rows; without it, a DELETE blocked by RLS
+  // returns success while affecting zero rows and we'd silently leave an
+  // orphan record on the server.
+  const { data, error } = await supabase
     .from('task_completions')
     .delete()
-    .eq('id', completionId);
+    .eq('id', completionId)
+    .select('id');
 
   if (error) {
     console.error('[deleteTaskCompletion] Supabase error:', error);
     return false;
   }
-
+  if (!data || data.length === 0) {
+    console.error(
+      '[deleteTaskCompletion] DELETE matched 0 rows for id=' + completionId +
+      '. Most likely cause: missing DELETE policy on task_completions (RLS).'
+    );
+    return false;
+  }
   return true;
 }
 
 /**
- * Check if a task was already completed today
- * Used to prevent duplicate completions across surfaces
- * @returns true if task was completed today, false otherwise
+ * Update completed_at + delay_days on an existing completion row.
+ * Used by updateCompletionDate() in store.ts (Change Date feature).
+ *
+ * Uses .select() to confirm a row was actually modified — without it, an
+ * UPDATE blocked by RLS returns success while affecting zero rows, and the
+ * caller silently sees "saved" while the server keeps the old data.
  */
-export async function wasTaskCompletedToday(
-  userId: string,
-  taskId: string
+export async function updateTaskCompletion(
+  completionId: string,
+  patch: { completed_at: number; delay_days: number }
 ): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('task_completions')
+    .update({
+      completed_at: new Date(patch.completed_at).toISOString(),
+      delay_days: patch.delay_days,
+    })
+    .eq('id', completionId)
+    .select('id');
+
+  if (error) {
+    console.error('[updateTaskCompletion] Supabase error:', error);
+    return false;
+  }
+  if (!data || data.length === 0) {
+    console.error(
+      '[updateTaskCompletion] UPDATE matched 0 rows for id=' + completionId +
+      '. Most likely cause: missing UPDATE policy on task_completions (RLS).'
+    );
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Fetch the most recent completion for a task that is NOT the given one.
+ * Used to compute the lower bound for the Change Date calendar.
+ * @returns the previous completion's completed_at (ms), or null if none exists.
+ */
+export async function fetchPreviousCompletion(
+  userId: string,
+  taskId: string,
+  excludeCompletionId: string
+): Promise<{ completed_at: number } | null> {
+  const { data, error } = await supabase
+    .from('task_completions')
+    .select('completed_at')
+    .eq('user_id', userId)
+    .eq('task_id', taskId)
+    .neq('id', excludeCompletionId)
+    .order('completed_at', { ascending: false })
+    .limit(1);
+
+  if (error) {
+    console.error('[fetchPreviousCompletion] Supabase error:', error);
+    return null;
+  }
+
+  const row = (data || [])[0];
+  if (!row) return null;
+  return { completed_at: new Date(row.completed_at).getTime() };
+}
+
+/**
+ * Return today's completion records for the user, one per (task_id, latest).
+ * Powers both the "completed today" indicator on the dashboard and the local
+ * cache that lets re-taps show Change Date / Cancel without a network round-trip.
+ */
+export async function fetchTodaysCompletions(
+  userId: string
+): Promise<{ task_id: string; id: string; due_date: number; completed_at: number }[]> {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today);
@@ -497,19 +571,31 @@ export async function wasTaskCompletedToday(
 
   const { data, error } = await supabase
     .from('task_completions')
-    .select('id')
+    .select('id, task_id, due_date, completed_at')
     .eq('user_id', userId)
-    .eq('task_id', taskId)
     .gte('completed_at', today.toISOString())
     .lt('completed_at', tomorrow.toISOString())
-    .limit(1);
+    .order('completed_at', { ascending: false });
 
   if (error) {
-    console.error('[wasTaskCompletedToday] Supabase error:', error);
-    return false; // fail open
+    console.error('[fetchTodaysCompletions] Supabase error:', error);
+    return [];
   }
 
-  return (data || []).length > 0;
+  // De-dup by task_id; first occurrence wins (already sorted DESC by completed_at).
+  const seen = new Set<string>();
+  const out: { task_id: string; id: string; due_date: number; completed_at: number }[] = [];
+  for (const row of data || []) {
+    if (seen.has(row.task_id)) continue;
+    seen.add(row.task_id);
+    out.push({
+      task_id: row.task_id,
+      id: row.id,
+      due_date: new Date(row.due_date).getTime(),
+      completed_at: new Date(row.completed_at).getTime(),
+    });
+  }
+  return out;
 }
 
 /**

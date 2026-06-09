@@ -79,10 +79,7 @@ export function Header({ currentView, onNavigate }: HeaderProps) {
   };
 
   return (
-    <header
-      class="bg-[var(--bg-primary)] border-b border-[var(--border-color)] sticky top-0 z-10 shrink-0"
-      style="padding-top: env(safe-area-inset-top); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right);"
-    >
+    <header class="bg-[var(--bg-primary)] border-b border-[var(--border-color)] sticky top-0 z-10 shrink-0">
       <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div class="flex h-16 items-center justify-between">
           {/* Left side: Navigation */}

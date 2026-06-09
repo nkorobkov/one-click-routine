@@ -4,6 +4,13 @@ import { translations, currentLanguage } from '../i18n';
 
 export type View = 'dashboard' | 'app' | 'stats' | 'settings' | 'install';
 
+// True when running as an installed home-screen app (standalone), where the
+// "Add to Home Screen" instructions are no longer relevant.
+const isStandalone =
+  typeof window !== 'undefined' &&
+  (window.matchMedia?.('(display-mode: standalone)').matches ||
+    (window.navigator as any).standalone === true);
+
 interface HeaderProps {
   currentView: View;
   onNavigate: (path: string) => void;
@@ -72,7 +79,10 @@ export function Header({ currentView, onNavigate }: HeaderProps) {
   };
 
   return (
-    <header class="bg-[var(--bg-primary)] border-b border-[var(--border-color)] sticky top-0 z-10 shrink-0">
+    <header
+      class="bg-[var(--bg-primary)] border-b border-[var(--border-color)] sticky top-0 z-10 shrink-0"
+      style="padding-top: env(safe-area-inset-top); padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right);"
+    >
       <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div class="flex h-16 items-center justify-between">
           {/* Left side: Navigation */}
@@ -175,27 +185,29 @@ export function Header({ currentView, onNavigate }: HeaderProps) {
                         </svg>
                         {t.settings}
                       </button>
-                      <button
-                        class="flex w-full items-center gap-2 rounded-lg px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
-                        style="background-color: transparent;"
-                        onMouseEnter={(e) => {
-                          (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--button-hover)';
-                        }}
-                        onMouseLeave={(e) => {
-                          (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
-                        }}
-                        onClick={() => {
-                          onNavigate('/install');
-                          setShowUserDropdown(false);
-                        }}
-                        role="menuitem"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                          <rect x="7" y="2" width="10" height="20" rx="2" ry="2" />
-                          <path stroke-linecap="round" d="M11 18h2" />
-                        </svg>
-                        {t.installApp}
-                      </button>
+                      {!isStandalone && (
+                        <button
+                          class="flex w-full items-center gap-2 rounded-lg px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                          style="background-color: transparent;"
+                          onMouseEnter={(e) => {
+                            (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--button-hover)';
+                          }}
+                          onMouseLeave={(e) => {
+                            (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
+                          }}
+                          onClick={() => {
+                            onNavigate('/install');
+                            setShowUserDropdown(false);
+                          }}
+                          role="menuitem"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <rect x="7" y="2" width="10" height="20" rx="2" ry="2" />
+                            <path stroke-linecap="round" d="M11 18h2" />
+                          </svg>
+                          {t.installApp}
+                        </button>
+                      )}
                       <button
                         type="button"
                         class="flex w-full items-center gap-2 rounded-lg px-4 py-2 text-sm text-[var(--danger)] transition-colors"

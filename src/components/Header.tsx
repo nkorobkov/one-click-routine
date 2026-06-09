@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'preact/hooks';
 import { currentUser, isAuthInitialized, signInWithGoogle, signOut, handleUserLogin, setOnLoginCallback } from '../lib/auth';
 import { translations, currentLanguage } from '../i18n';
 
-export type View = 'dashboard' | 'app' | 'stats' | 'settings';
+export type View = 'dashboard' | 'app' | 'stats' | 'settings' | 'install';
 
 interface HeaderProps {
   currentView: View;
@@ -174,6 +174,27 @@ export function Header({ currentView, onNavigate }: HeaderProps) {
                           <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
                         {t.settings}
+                      </button>
+                      <button
+                        class="flex w-full items-center gap-2 rounded-lg px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                        style="background-color: transparent;"
+                        onMouseEnter={(e) => {
+                          (e.currentTarget as HTMLElement).style.backgroundColor = 'var(--button-hover)';
+                        }}
+                        onMouseLeave={(e) => {
+                          (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
+                        }}
+                        onClick={() => {
+                          onNavigate('/install');
+                          setShowUserDropdown(false);
+                        }}
+                        role="menuitem"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                          <rect x="7" y="2" width="10" height="20" rx="2" ry="2" />
+                          <path stroke-linecap="round" d="M11 18h2" />
+                        </svg>
+                        {t.installApp}
                       </button>
                       <button
                         type="button"

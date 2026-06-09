@@ -163,6 +163,21 @@ export interface Translations {
   changeDateFailed: string;
   alreadyCompletedToday: string;
   cancelTodaysCompletion: string;
+
+  // Install / Add to Home Screen
+  installApp: string;
+  installIntro: string;
+  installIosTitle: string;
+  installIosNote: string;
+  installIosStep1: string;
+  installIosStep2: string;
+  installIosStep3: string;
+  installIosStep4: string;
+  installAndroidTitle: string;
+  installAndroidStep1: string;
+  installAndroidStep2: string;
+  installAndroidStep3: string;
+  installAndroidStep4: string;
 }
 
 export const translations: Record<LanguageId, Translations> = {
@@ -345,6 +360,21 @@ export const translations: Record<LanguageId, Translations> = {
     changeDateFailed: 'Could not update completion date. Try again.',
     alreadyCompletedToday: 'Already completed today',
     cancelTodaysCompletion: "Cancel today's completion",
+
+    // Install / Add to Home Screen
+    installApp: 'Install App',
+    installIntro: 'Add One-Click Routine to your home screen for a full-screen, app-like experience that opens in one tap.',
+    installIosTitle: 'iPhone & iPad',
+    installIosNote: 'These steps only work in Safari. If you opened this page in another browser, open it in Safari first.',
+    installIosStep1: 'Open this site in Safari.',
+    installIosStep2: 'Tap the Share button (the square with an upward arrow) in the toolbar.',
+    installIosStep3: 'Scroll down and tap “Add to Home Screen”.',
+    installIosStep4: 'Tap “Add” in the top-right corner. The icon will appear on your home screen.',
+    installAndroidTitle: 'Android',
+    installAndroidStep1: 'Open this site in Chrome.',
+    installAndroidStep2: 'Tap the ⋮ menu in the top-right corner.',
+    installAndroidStep3: 'Tap “Add to Home screen” (or “Install app”).',
+    installAndroidStep4: 'Tap “Install” to confirm. The icon will appear on your home screen.',
   },
   ru: {
     timeFormat: (hours, minutes) => {
@@ -557,6 +587,21 @@ export const translations: Record<LanguageId, Translations> = {
     changeDateFailed: 'Не удалось обновить дату выполнения. Попробуйте снова.',
     alreadyCompletedToday: 'Уже выполнено сегодня',
     cancelTodaysCompletion: 'Отменить сегодняшнее выполнение',
+
+    // Install / Add to Home Screen
+    installApp: 'Установить приложение',
+    installIntro: 'Добавьте One-Click Routine на главный экран, чтобы открывать его в одно касание как обычное приложение на весь экран.',
+    installIosTitle: 'iPhone и iPad',
+    installIosNote: 'Эти шаги работают только в Safari. Если вы открыли страницу в другом браузере, сначала откройте её в Safari.',
+    installIosStep1: 'Откройте сайт в Safari.',
+    installIosStep2: 'Нажмите кнопку «Поделиться» (квадрат со стрелкой вверх) на панели инструментов.',
+    installIosStep3: 'Пролистайте вниз и нажмите «На экран „Домой“».',
+    installIosStep4: 'Нажмите «Добавить» в правом верхнем углу. Значок появится на главном экране.',
+    installAndroidTitle: 'Android',
+    installAndroidStep1: 'Откройте сайт в Chrome.',
+    installAndroidStep2: 'Нажмите кнопку меню ⋮ в правом верхнем углу.',
+    installAndroidStep3: 'Выберите «Добавить на главный экран» (или «Установить приложение»).',
+    installAndroidStep4: 'Нажмите «Установить», чтобы подтвердить. Значок появится на главном экране.',
   },
 };
 

@@ -7,6 +7,7 @@ import { Dashboard } from './components/Dashboard';
 import { AppPage } from './components/AppPage';
 import { StatsPage } from './components/StatsPage';
 import { SettingsPage } from './components/SettingsPage';
+import { InstallPage } from './components/InstallPage';
 import './app.css';
 
 // Renders whichever screen the user picked as their device-local default.
@@ -28,6 +29,7 @@ export function App() {
       <AppPage path="/add" />
       <StatsPage path="/stats" />
       <SettingsPage path="/settings" />
+      <InstallPage path="/install" />
     </Router>
   );
 }

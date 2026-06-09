@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'preact/hooks';
 import { currentUser, isAuthInitialized, signInWithGoogle, signOut, handleUserLogin, setOnLoginCallback } from '../lib/auth';
 import { translations, currentLanguage } from '../i18n';
 
-export type View = 'dashboard' | 'addTask' | 'stats' | 'settings';
+export type View = 'dashboard' | 'app' | 'stats' | 'settings';
 
 interface HeaderProps {
   currentView: View;
@@ -68,7 +68,7 @@ export function Header({ currentView, onNavigate }: HeaderProps) {
   };
 
   const handleDashboardClick = () => {
-    onNavigate('/');
+    onNavigate('/dashboard');
   };
 
   return (
@@ -92,14 +92,14 @@ export function Header({ currentView, onNavigate }: HeaderProps) {
                     {t.dashboard}
                   </button>
                 </li>
-                {currentView !== 'addTask' && (
+                {currentView !== 'app' && (
                   <li>
                     <button
                       class="text-[var(--text-secondary)] transition hover:text-[var(--text-primary)]"
                       style="background-color: transparent; border: none;"
-                      onClick={() => onNavigate('/add')}
+                      onClick={() => onNavigate('/app')}
                     >
-                      {t.addTaskNav}
+                      {t.appNav}
                     </button>
                   </li>
                 )}

@@ -40,27 +40,27 @@ function generateListId(): string {
 
 const MAX_LISTS = 10;
 
-export async function addList(name: string): Promise<boolean> {
+export async function addList(name: string): Promise<List | null> {
   if (!isLoggedIn()) {
     debug('addList: not logged in');
-    return false;
+    return null;
   }
 
   const trimmedName = name.trim();
   if (!trimmedName) {
     debug('addList: empty name');
-    return false;
+    return null;
   }
 
   if (lists.value.length >= MAX_LISTS) {
     debug('addList: max lists reached');
-    return false;
+    return null;
   }
 
   const userId = getCurrentUserId();
   if (!userId) {
     debug('addList: no user id');
-    return false;
+    return null;
   }
 
   const newList: List = {
@@ -72,12 +72,12 @@ export async function addList(name: string): Promise<boolean> {
   const success = await upsertUserList(userId, newList);
   if (!success) {
     debug('addList: Supabase upsert failed');
-    return false;
+    return null;
   }
 
   // Update local state
   lists.value = [...lists.value, newList];
-  return true;
+  return newList;
 }
 
 export async function updateList(id: string, name: string): Promise<boolean> {

@@ -45,6 +45,7 @@ export interface Translations {
   // Header navigation
   dashboard: string;
   addTaskNav: string;
+  appNav: string;
   settings: string;
   loginWithGoogle: string;
   logout: string;
@@ -140,6 +141,21 @@ export interface Translations {
   taskOrderFixedDesc: string;
   taskOrderPriorityDesc: string;
 
+  // Default screen preference
+  defaultScreen: string;
+  defaultScreenDashboard: string;
+  defaultScreenApp: string;
+  defaultScreenToggleLabel: string;
+  defaultScreenHint: string;
+
+  // App page
+  addTaskInline: string;
+  markComplete: string;
+  completeWithDate: string;
+  doneToday: string;
+  daysUnit: string;
+  daysAgo: string;
+
   // Change completion date
   changeDate: string;
   changeDatePopupTitle: string;
@@ -195,6 +211,7 @@ export const translations: Record<LanguageId, Translations> = {
     // Header navigation
     dashboard: 'Dashboard',
     addTaskNav: 'Add Task',
+    appNav: 'App',
     settings: 'Settings',
     loginWithGoogle: 'Login with Google',
     logout: 'Logout',
@@ -303,8 +320,23 @@ export const translations: Record<LanguageId, Translations> = {
     // Task ordering
     taskOrder: 'Task Order',
     taskOrderModeLabel: 'Sort by due date',
-    taskOrderFixedDesc: 'Tasks appear in the order you set on the Add Task screen',
+    taskOrderFixedDesc: 'Tasks appear in the order you set on the App screen',
     taskOrderPriorityDesc: 'Tasks are automatically sorted with the soonest due date first',
+
+    // Default screen preference
+    defaultScreen: 'Default screen',
+    defaultScreenDashboard: 'Dashboard',
+    defaultScreenApp: 'App',
+    defaultScreenToggleLabel: 'Open Dashboard by default',
+    defaultScreenHint: 'Which screen opens at the home address. Saved on this device only.',
+
+    // App page
+    addTaskInline: 'Add Task',
+    markComplete: 'Mark complete',
+    completeWithDate: 'Complete on a different date',
+    doneToday: 'Done today',
+    daysUnit: 'days',
+    daysAgo: 'days ago',
 
     // Change completion date
     changeDate: 'Change date',
@@ -363,6 +395,7 @@ export const translations: Record<LanguageId, Translations> = {
     // Header navigation
     dashboard: 'Главная',
     addTaskNav: 'Добавить рутину',
+    appNav: 'Приложение',
     settings: 'Настройки',
     loginWithGoogle: 'Войти через Google',
     logout: 'Выйти',
@@ -499,8 +532,23 @@ export const translations: Record<LanguageId, Translations> = {
     // Task ordering
     taskOrder: 'Порядок задач',
     taskOrderModeLabel: 'Сортировать по дате выполнения',
-    taskOrderFixedDesc: 'Задачи отображаются в порядке, установленном на экране добавления',
+    taskOrderFixedDesc: 'Задачи отображаются в порядке, установленном на экране приложения',
     taskOrderPriorityDesc: 'Задачи автоматически сортируются по дате выполнения (ближайшие первыми)',
+
+    // Default screen preference
+    defaultScreen: 'Экран по умолчанию',
+    defaultScreenDashboard: 'Главная',
+    defaultScreenApp: 'Приложение',
+    defaultScreenToggleLabel: 'Открывать Главную по умолчанию',
+    defaultScreenHint: 'Какой экран открывается на домашнем адресе. Сохраняется только на этом устройстве.',
+
+    // App page
+    addTaskInline: 'Добавить рутину',
+    markComplete: 'Отметить выполненной',
+    completeWithDate: 'Выполнить другой датой',
+    doneToday: 'Выполнено сегодня',
+    daysUnit: 'дн.',
+    daysAgo: 'дн. назад',
 
     // Change completion date
     changeDate: 'Изменить дату',

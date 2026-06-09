@@ -3,9 +3,10 @@ import { route } from 'preact-router';
 import { themes, type ThemeId, getStoredTheme, saveTheme, applyTheme } from '../themes';
 import { translations, type LanguageId, currentLanguage, setLanguage } from '../i18n';
 import { Header } from './Header';
+import { ListManager } from './ListManager';
 import { currentUser } from '../lib/auth';
 import { saveUserSettings } from '../lib/supabase';
-import { taskOrderMode, saveTaskOrderMode, type TaskOrderMode } from '../store';
+import { taskOrderMode, saveTaskOrderMode, type TaskOrderMode, defaultScreen, saveDefaultScreen } from '../store';
 
 interface SettingsPageProps {
   path?: string;
@@ -103,6 +104,25 @@ export function SettingsPage({}: SettingsPageProps) {
             </select>
           </div>
           <div class="form-group">
+            <label>{t.defaultScreen}</label>
+            <div class="toggle-container">
+              <label class="toggle-label">
+                <input
+                  type="checkbox"
+                  checked={defaultScreen.value === 'dashboard'}
+                  onChange={(e) => {
+                    const isChecked = (e.target as HTMLInputElement).checked;
+                    saveDefaultScreen(isChecked ? 'dashboard' : 'app');
+                  }}
+                  class="toggle-input"
+                />
+                <span class="toggle-slider"></span>
+                <span class="toggle-text">{t.defaultScreenToggleLabel}</span>
+              </label>
+            </div>
+            <small class="form-hint toggle-description">{t.defaultScreenHint}</small>
+          </div>
+          <div class="form-group">
             <label>{t.taskOrder}</label>
             <div class="toggle-container">
               <label class="toggle-label">
@@ -124,6 +144,8 @@ export function SettingsPage({}: SettingsPageProps) {
             </small>
           </div>
         </div>
+
+        {currentUser.value && <ListManager />}
       </main>
     </div>
   );

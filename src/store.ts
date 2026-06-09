@@ -12,8 +12,13 @@ export interface Task {
 
 export type TaskOrderMode = 'fixed' | 'priority';
 
+// Which screen renders at the "/" path. Device-local only — intentionally NOT
+// synced to Supabase, so each device can choose its own default.
+export type DefaultScreen = 'dashboard' | 'app';
+
 const STORAGE_KEY = 'one-click-routine-tasks';
 const TASK_ORDER_MODE_KEY = 'one-click-routine-task-order-mode';
+const DEFAULT_SCREEN_KEY = 'one-click-routine-default-screen';
 
 export const debug = (...args: string[]) => {
   if (import.meta.env.DEV) {
@@ -178,6 +183,30 @@ export function getTaskOrderMode(): TaskOrderMode {
   return taskOrderMode.value;
 }
 
+// ==========================================
+// Default Screen helpers (device-local, not synced)
+// ==========================================
+function loadDefaultScreen(): DefaultScreen {
+  try {
+    const stored = localStorage.getItem(DEFAULT_SCREEN_KEY);
+    if (stored === 'dashboard' || stored === 'app') {
+      return stored;
+    }
+  } catch (e) {
+    console.error('Failed to load default screen from localStorage:', e);
+  }
+  return 'app'; // App is the new home
+}
+
+export function saveDefaultScreen(screen: DefaultScreen) {
+  defaultScreen.value = screen;
+  try {
+    localStorage.setItem(DEFAULT_SCREEN_KEY, screen);
+  } catch (e) {
+    console.error('Failed to save default screen to localStorage:', e);
+  }
+}
+
 // Helper function to get sorted tasks based on the current order mode
 export function getSortedTasks(taskList: Task[] = tasks.value): Task[] {
   if (taskOrderMode.value === 'priority') {
@@ -193,6 +222,7 @@ export function getSortedTasks(taskList: Task[] = tasks.value): Task[] {
 // ==========================================
 export const tasks = signal<Task[]>(loadTasks());
 export const taskOrderMode = signal<TaskOrderMode>(loadTaskOrderMode());
+export const defaultScreen = signal<DefaultScreen>(loadDefaultScreen());
 
 function getDateString(): string {
   const now = new Date();

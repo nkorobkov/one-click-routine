@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks';
+import { useState, useRef, useEffect } from 'preact/hooks';
 import { lists, addList } from '../lib/lists';
 import { translations, currentLanguage } from '../i18n';
 
@@ -14,8 +14,16 @@ export function ListSelector({ selectedListIds, onToggle, disabled }: ListSelect
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [justPressedEnter, setJustPressedEnter] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const t = translations[currentLanguage.value];
+
+  // Move focus to the input as soon as the "+" reveals it.
+  useEffect(() => {
+    if (isAddingList) {
+      inputRef.current?.focus();
+    }
+  }, [isAddingList]);
 
   const handleAddList = async () => {
     // Prevent double-save when Enter triggers both keydown and blur
@@ -41,10 +49,14 @@ export function ListSelector({ selectedListIds, onToggle, disabled }: ListSelect
 
     setIsSubmitting(true);
     setErrorMessage(null);
-    const success = await addList(trimmedName);
+    const newList = await addList(trimmedName);
     setIsSubmitting(false);
 
-    if (success) {
+    if (newList) {
+      // Auto-select the freshly created list for the task being edited.
+      if (!selectedListIds.includes(newList.id)) {
+        onToggle(newList.id);
+      }
       setIsAddingList(false);
       setNewListName('');
     } else {
@@ -96,6 +108,7 @@ export function ListSelector({ selectedListIds, onToggle, disabled }: ListSelect
 
         {isAddingList ? (
           <input
+            ref={inputRef}
             type="text"
             value={newListName}
             onInput={(e) => setNewListName((e.target as HTMLInputElement).value)}

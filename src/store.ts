@@ -8,6 +8,7 @@ export interface Task {
   intervalDays: number;
   nextDueDate: number; // Timestamp for when task is next due
   description?: string; // Optional task description
+  hidden?: boolean; // Hidden from home screen; only shown inside its lists
 }
 
 export type TaskOrderMode = 'fixed' | 'priority';
@@ -313,12 +314,13 @@ function applyLocal(updater: (current: Task[]) => Task[]) {
   saveTasks(updated);
 }
 
-export async function addTask(name: string, intervalDays: number, initialDaysOffset?: number): Promise<boolean> {
+export async function addTask(name: string, intervalDays: number, initialDaysOffset?: number, hidden?: boolean): Promise<boolean> {
   const newTask: Task = {
     id: generateShortId(),
     name,
     intervalDays,
     nextDueDate: calculateNextDueDate(intervalDays, initialDaysOffset),
+    hidden: hidden || false,
   };
   const sortOrder = tasks.value.length;
   const ok = await withSupabase(uid => upsertUserTaskForUser(uid, newTask, sortOrder));
@@ -337,9 +339,10 @@ export async function deleteTask(id: string): Promise<boolean> {
   return true;
 }
 
-export async function updateTask(id: string, name: string, intervalDays: number): Promise<boolean> {
+export async function updateTask(id: string, name: string, intervalDays: number, hidden?: boolean): Promise<boolean> {
   const task = tasks.value.find(t => t.id === id);
   if (!task) return false;
+  const nextHidden = hidden !== undefined ? hidden : (task.hidden || false);
 
   let updatedTask: Task;
   if (task.intervalDays !== intervalDays) {
@@ -352,9 +355,9 @@ export async function updateTask(id: string, name: string, intervalDays: number)
     const daysElapsed = task.intervalDays - daysRemaining;
     const newDueDate = new Date(today);
     newDueDate.setDate(today.getDate() + (intervalDays - daysElapsed));
-    updatedTask = { ...task, name: name.trim(), intervalDays, nextDueDate: newDueDate.getTime() };
+    updatedTask = { ...task, name: name.trim(), intervalDays, nextDueDate: newDueDate.getTime(), hidden: nextHidden };
   } else {
-    updatedTask = { ...task, name: name.trim(), intervalDays };
+    updatedTask = { ...task, name: name.trim(), intervalDays, hidden: nextHidden };
   }
 
   const index = tasks.value.findIndex(t => t.id === id);
@@ -553,6 +556,34 @@ export function swapTasks(id: string, direction: -1 | 1) {
   }
 }
 
+// moveTaskInView: OPTIMISTIC — move a task one step up/down relative to the
+// tasks currently visible (visibleIds, in display order). In a filtered list
+// view the neighbor may not be adjacent in the global array, so the task is
+// re-inserted next to that neighbor rather than swapped with its raw neighbor.
+export function moveTaskInView(id: string, direction: -1 | 1, visibleIds: string[]) {
+  const vIndex = visibleIds.indexOf(id);
+  if (vIndex < 0) return;
+  const neighborId = visibleIds[vIndex + direction];
+  if (!neighborId) return;
+
+  const task = tasks.value.find(t => t.id === id);
+  if (!task) return;
+
+  const without = tasks.value.filter(t => t.id !== id);
+  const neighborIndex = without.findIndex(t => t.id === neighborId);
+  if (neighborIndex < 0) return;
+
+  const insertAt = direction === -1 ? neighborIndex : neighborIndex + 1;
+  const updated = [...without.slice(0, insertAt), task, ...without.slice(insertAt)];
+  tasks.value = updated;
+  saveTasks(updated);
+
+  if (isLoggedIn()) {
+    const userId = getCurrentUserId();
+    if (userId) upsertUserTasksForUser(userId, updated);
+  }
+}
+
 // adjustTaskTime: OPTIMISTIC
 export function adjustTaskTime(id: string, daysDelta: number) {
   const updated = tasks.value.map((t) => {
@@ -688,6 +719,7 @@ export async function syncTasksWithSupabase(): Promise<void> {
         intervalDays: remoteTask.intervalDays, // interval from remote
         nextDueDate: Math.max(localTask.nextDueDate, remoteTask.nextDueDate), // latest due date
         description: remoteTask.description || '', // description from remote
+        hidden: remoteTask.hidden || false,  // hidden from remote
       });
     } else {
       // Task only exists remotely — add it
@@ -697,6 +729,7 @@ export async function syncTasksWithSupabase(): Promise<void> {
         intervalDays: remoteTask.intervalDays,
         nextDueDate: remoteTask.nextDueDate,
         description: remoteTask.description || '',
+        hidden: remoteTask.hidden || false,
       });
     }
   }

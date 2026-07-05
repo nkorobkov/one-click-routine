@@ -156,6 +156,16 @@ export interface Translations {
   daysUnit: string;
   daysAgo: string;
 
+  // Hidden tasks
+  hideFromHome: string;
+  hideFromHomeHint: string;
+  hiddenTasksDue: string;
+
+  // Task position (move up/down in list)
+  taskPosition: string;
+  moveUp: string;
+  moveDown: string;
+
   // Change completion date
   changeDate: string;
   changeDatePopupTitle: string;
@@ -352,6 +362,16 @@ export const translations: Record<LanguageId, Translations> = {
     doneToday: 'Done today',
     daysUnit: 'days',
     daysAgo: 'days ago',
+
+    // Hidden tasks
+    hideFromHome: 'Hide from home screen',
+    hideFromHomeHint: 'Task will only appear inside its lists. Requires at least one list.',
+    hiddenTasksDue: 'Hidden tasks are due in other lists',
+
+    // Task position (move up/down in list)
+    taskPosition: 'Position in list',
+    moveUp: 'Move up',
+    moveDown: 'Move down',
 
     // Change completion date
     changeDate: 'Change date',
@@ -579,6 +599,16 @@ export const translations: Record<LanguageId, Translations> = {
     doneToday: 'Выполнено сегодня',
     daysUnit: 'дн.',
     daysAgo: 'дн. назад',
+
+    // Hidden tasks
+    hideFromHome: 'Скрыть с главного экрана',
+    hideFromHomeHint: 'Задача будет видна только внутри своих списков. Нужен хотя бы один список.',
+    hiddenTasksDue: 'В других списках есть просроченные задачи',
+
+    // Task position (move up/down in list)
+    taskPosition: 'Позиция в списке',
+    moveUp: 'Переместить вверх',
+    moveDown: 'Переместить вниз',
 
     // Change completion date
     changeDate: 'Изменить дату',

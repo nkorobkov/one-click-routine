@@ -6,7 +6,7 @@ import { currentUser, signInWithGoogle } from '../lib/auth';
 import { Popup } from './Popup';
 import { ChangeDatePopup } from './ChangeDatePopup';
 import textFit from 'textfit';
-import { lists, getTasksInList } from '../lib/lists';
+import { lists, getTasksInList, isTaskEffectivelyHidden } from '../lib/lists';
 
 interface DashboardProps {
   path?: string; // Required by preact-router
@@ -363,22 +363,30 @@ export function Dashboard({}: DashboardProps) {
   };
 
   // Generate panels: "Due Tasks" + "All Tasks" + one per list (only lists with tasks)
-  // Apply sorting based on task order mode
+  // Apply sorting based on task order mode. Hidden tasks are excluded from the
+  // Due/All panels and only appear inside their list panels.
   const sortedTasks = getSortedTasks();
-  const dueTasks = getSortedTasks(sortedTasks.filter(task => getDaysRemaining(task) <= 0));
+  const homeTasks = sortedTasks.filter(task => !isTaskEffectivelyHidden(task));
+  const dueTasks = getSortedTasks(homeTasks.filter(task => getDaysRemaining(task) <= 0));
   const panelsData = [
-    { name: t.dueTasks, tasks: dueTasks, isDuePanel: true },
-    { name: t.allTasks, tasks: sortedTasks, isDuePanel: false },
+    { name: t.dueTasks, tasks: dueTasks, isDuePanel: true, isListPanel: false },
+    { name: t.allTasks, tasks: homeTasks, isDuePanel: false, isListPanel: false },
     ...lists.value
       .map(list => {
         const taskIds = getTasksInList(list.id);
         const listTasks = sortedTasks.filter(task => taskIds.includes(task.id));
-        return { name: list.name, tasks: listTasks, isDuePanel: false };
+        return { name: list.name, tasks: listTasks, isDuePanel: false, isListPanel: true };
       })
       .filter(panel => panel.tasks.length > 0) // Only show lists with tasks
   ];
 
   const currentPanelName = panelsData[activePanel]?.name || t.allTasks;
+  // Red dot next to the panel name: something is due among hidden tasks,
+  // which the Due/All panels don't show.
+  const hiddenDueExists = sortedTasks.some(
+    task => isTaskEffectivelyHidden(task) && getDaysRemaining(task) <= 0
+  );
+  const showHiddenDueDot = hiddenDueExists && !panelsData[activePanel]?.isListPanel;
 
   return (
     <div class="app">
@@ -388,7 +396,10 @@ export function Dashboard({}: DashboardProps) {
           <span class="date-display">{formatDate(currentTime)}</span>
         </div>
         {currentUser.value && lists.value.length > 0 && (
-          <div class="time-bar-list-name">{currentPanelName}</div>
+          <div class="time-bar-list-name">
+            {currentPanelName}
+            {showHiddenDueDot && <span class="time-bar-due-dot" title={t.hiddenTasksDue} />}
+          </div>
         )}
       </div>
       <button class="settings-button" onClick={() => route('/add')} aria-label="Settings">

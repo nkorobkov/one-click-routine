@@ -51,6 +51,17 @@
   pointer-events: none;
 }
 
+/* Something is due among hidden tasks in other lists */
+.time-bar-due-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--danger);
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
 /* Settings Button (Floating) */
 .settings-button {
   position: fixed;
@@ -1779,6 +1790,9 @@
   margin: 0 auto;
   width: 100%;
   -webkit-overflow-scrolling: touch;
+  /* TaskEditor compensates scroll manually when reordering tasks;
+     native scroll anchoring would fight it. */
+  overflow-anchor: none;
 }
 
 /* List filter chips */
@@ -1818,6 +1832,12 @@
   background-color: var(--accent-green);
   color: var(--text-primary);
   border-color: var(--accent-green);
+}
+
+/* List contains a hidden task that is due — surface it on the chip */
+.app-filter-chip.has-hidden-due:not(.active) {
+  border-color: var(--danger);
+  color: var(--danger);
 }
 
 .app-card-list {
@@ -2029,8 +2049,27 @@
   background-color: var(--button-danger-active-bg);
 }
 
+.task-editor-move {
+  background-color: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.task-editor-move:active:not(:disabled) {
+  background-color: var(--button-hover);
+}
+
 .task-editor-secondary:disabled,
-.task-editor-delete:disabled {
+.task-editor-delete:disabled,
+.task-editor-move:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }

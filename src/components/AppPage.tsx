@@ -17,7 +17,7 @@ import {
 } from '../store';
 import { translations, currentLanguage } from '../i18n';
 import { currentUser, signInWithGoogle } from '../lib/auth';
-import { lists, getTasksInList } from '../lib/lists';
+import { lists, getTasksInList, isTaskEffectivelyHidden } from '../lib/lists';
 import { Header } from './Header';
 import { Popup } from './Popup';
 import { ChangeDatePopup } from './ChangeDatePopup';
@@ -174,9 +174,20 @@ export function AppPage({}: AppPageProps) {
   const showFilterBar = filterableLists.length > 0;
   const activeListId =
     selectedListId && filterableLists.some(l => l.id === selectedListId) ? selectedListId : null;
+  // "All" hides tasks marked hidden (they live only inside their lists);
+  // a selected list shows everything in it, hidden included.
   const visibleTasks = activeListId
     ? sortedTasks.filter(tk => getTasksInList(activeListId).includes(tk.id))
-    : sortedTasks;
+    : sortedTasks.filter(tk => !isTaskEffectivelyHidden(tk));
+  const visibleTaskIds = visibleTasks.map(tk => tk.id);
+
+  // Lists holding a hidden task that is due/overdue — their chips get an
+  // attention color since the task isn't visible under "All".
+  const listHasHiddenDue = (listId: string): boolean =>
+    getTasksInList(listId).some(id => {
+      const tk = tasks.value.find(x => x.id === id);
+      return !!tk && !!tk.hidden && getDaysRemaining(tk) <= 0;
+    });
 
   return (
     <div class="app">
@@ -194,7 +205,7 @@ export function AppPage({}: AppPageProps) {
             {filterableLists.map((list) => (
               <button
                 key={list.id}
-                class={`app-filter-chip${activeListId === list.id ? ' active' : ''}`}
+                class={`app-filter-chip${activeListId === list.id ? ' active' : ''}${listHasHiddenDue(list.id) ? ' has-hidden-due' : ''}`}
                 onClick={() => setSelectedListId(list.id)}
               >
                 {list.name}
@@ -220,7 +231,7 @@ export function AppPage({}: AppPageProps) {
             if (expandedId === task.id) {
               return (
                 <div key={task.id} class="app-card app-card-expanded">
-                  <TaskEditor mode="edit" task={task} onDone={() => setExpandedId(null)} />
+                  <TaskEditor mode="edit" task={task} onDone={() => setExpandedId(null)} visibleTaskIds={visibleTaskIds} />
                 </div>
               );
             }

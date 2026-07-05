@@ -248,6 +248,15 @@ export function getTaskLists(taskId: string): List[] {
   return lists.value.filter(list => listIds.includes(list.id));
 }
 
+// A task is only actually hidden from home/"All" views if it can still be
+// reached through at least one list. A hidden task whose lists were all
+// deleted (or a guest session with no list data) stays visible so it never
+// becomes unreachable.
+export function isTaskEffectivelyHidden(task: { id: string; hidden?: boolean }): boolean {
+  if (!task.hidden) return false;
+  return taskListAssociations.value.some(assoc => assoc.taskId === task.id);
+}
+
 export function getTasksInList(listId: string): string[] {
   return taskListAssociations.value
     .filter(assoc => assoc.listId === listId)

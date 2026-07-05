@@ -1,5 +1,5 @@
-import { useState } from 'preact/hooks';
-import { addTask, updateTask, deleteTask, updateTaskDescription, tasks, type Task } from '../store';
+import { useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { addTask, updateTask, deleteTask, updateTaskDescription, moveTaskInView, taskOrderMode, tasks, type Task } from '../store';
 import { translations, currentLanguage } from '../i18n';
 import { currentUser, signInWithGoogle } from '../lib/auth';
 import { setTaskListsForTask, getTaskLists } from '../lib/lists';
@@ -10,9 +10,12 @@ interface TaskEditorProps {
   mode: 'add' | 'edit';
   task?: Task;
   onDone: () => void;
+  // Ids of the tasks in the view the editor was opened from, in display
+  // order. Enables the move up/down buttons (edit mode, fixed order only).
+  visibleTaskIds?: string[];
 }
 
-export function TaskEditor({ mode, task, onDone }: TaskEditorProps) {
+export function TaskEditor({ mode, task, onDone, visibleTaskIds }: TaskEditorProps) {
   const t = translations[currentLanguage.value];
   const loggedIn = currentUser.value !== null;
 
@@ -23,6 +26,8 @@ export function TaskEditor({ mode, task, onDone }: TaskEditorProps) {
     mode === 'edit' && task ? getTaskLists(task.id).map(l => l.id) : []
   );
   const [description, setDescription] = useState(task?.description ?? '');
+  const [hidden, setHidden] = useState(task?.hidden ?? false);
+  const editorRef = useRef<HTMLDivElement>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -31,6 +36,55 @@ export function TaskEditor({ mode, task, onDone }: TaskEditorProps) {
 
   const days = typeof intervalDays === 'number' ? intervalDays : parseInt(String(intervalDays)) || 0;
   const canSave = name.trim().length > 0 && days > 0 && !isSaving;
+  // Hiding is only allowed while the task belongs to at least one list —
+  // otherwise it would be unreachable.
+  const canHide = selectedListIds.length > 0;
+  const effectiveHidden = canHide && hidden;
+
+  // Move up/down: only meaningful in fixed order (priority mode sorts by due date).
+  const positionIndex = task && visibleTaskIds ? visibleTaskIds.indexOf(task.id) : -1;
+  const canReorder =
+    mode === 'edit' &&
+    taskOrderMode.value === 'fixed' &&
+    positionIndex >= 0 &&
+    (visibleTaskIds?.length ?? 0) > 1;
+
+  // Reorder while keeping the editor visually anchored: the list shifts
+  // around it instead of the card jumping away from the cursor. handleMove
+  // records the editor's viewport position; the layout effect below runs
+  // synchronously after the reordered DOM is committed (before paint) and
+  // compensates the scroll by however far the card actually moved.
+  const pendingAnchorTop = useRef<number | null>(null);
+
+  const handleMove = (direction: -1 | 1) => {
+    if (!task || !visibleTaskIds) return;
+    pendingAnchorTop.current = editorRef.current?.getBoundingClientRect().top ?? null;
+    moveTaskInView(task.id, direction, visibleTaskIds);
+  };
+
+  useLayoutEffect(() => {
+    const before = pendingAnchorTop.current;
+    if (before === null) return;
+    pendingAnchorTop.current = null;
+    const el = editorRef.current;
+    if (!el) return;
+    let delta = el.getBoundingClientRect().top - before;
+    if (delta === 0) return;
+    // Find the ancestor that actually scrolls by trying each overflowing one.
+    // (html/body have overflow-x hidden, which makes <body> the real scroll
+    // container — window.scrollBy and documentElement.scrollTop are no-ops.)
+    // A non-scroller ignores scrollTop writes, so verify each attempt took.
+    let node: HTMLElement | null = el.parentElement;
+    while (node && delta !== 0) {
+      if (node.scrollHeight > node.clientHeight) {
+        const prev = node.scrollTop;
+        node.scrollTop = prev + delta;
+        delta -= node.scrollTop - prev;
+      }
+      node = node.parentElement;
+    }
+    if (delta !== 0) window.scrollBy(0, delta);
+  }, [positionIndex]);
 
   const toggleList = (listId: string) => {
     setSelectedListIds(prev =>
@@ -45,7 +99,7 @@ export function TaskEditor({ mode, task, onDone }: TaskEditorProps) {
 
     if (mode === 'add') {
       const offset = initialDaysOffset === '' ? undefined : Number(initialDaysOffset);
-      const ok = await addTask(name.trim(), days, offset);
+      const ok = await addTask(name.trim(), days, offset, loggedIn && effectiveHidden);
       if (!ok) {
         setIsSaving(false);
         setErrorMessage(t.addTaskFailed);
@@ -71,7 +125,7 @@ export function TaskEditor({ mode, task, onDone }: TaskEditorProps) {
 
     // edit mode
     if (!task) return;
-    const taskOk = await updateTask(task.id, name.trim(), days);
+    const taskOk = await updateTask(task.id, name.trim(), days, loggedIn && effectiveHidden);
     const listsOk = await setTaskListsForTask(task.id, selectedListIds);
     let descOk = true;
     if ((task.description ?? '') !== description.trim()) {
@@ -113,7 +167,7 @@ export function TaskEditor({ mode, task, onDone }: TaskEditorProps) {
     'w-full px-3 py-2 rounded-lg text-base bg-[var(--bg-primary)] text-[var(--text-primary)] border border-[var(--border-color)] outline-none focus:border-[var(--accent-green)]';
 
   return (
-    <div class="task-editor">
+    <div class="task-editor" ref={editorRef}>
       {errorMessage && (
         <div class="text-[var(--danger)] text-sm mb-3 px-3 py-2 rounded-lg bg-[rgba(255,59,48,0.1)]">
           {errorMessage}
@@ -179,6 +233,18 @@ export function TaskEditor({ mode, task, onDone }: TaskEditorProps) {
             onToggle={toggleList}
             disabled={isSaving}
           />
+          <label class={`toggle-label mt-3${canHide ? '' : ' opacity-50'}`}>
+            <input
+              type="checkbox"
+              class="toggle-input"
+              checked={effectiveHidden}
+              disabled={!canHide || isSaving}
+              onChange={(e) => setHidden((e.target as HTMLInputElement).checked)}
+            />
+            <span class="toggle-slider"></span>
+            <span class="toggle-text">{t.hideFromHome}</span>
+          </label>
+          <small class="block mt-1 text-xs text-[var(--text-secondary)]">{t.hideFromHomeHint}</small>
         </div>
       )}
 
@@ -193,6 +259,34 @@ export function TaskEditor({ mode, task, onDone }: TaskEditorProps) {
           disabled={isSaving}
         />
       </div>
+
+      {canReorder && task && visibleTaskIds && (
+        <div class="flex items-center justify-between mb-4">
+          <span class="text-sm font-medium text-[var(--text-secondary)]">{t.taskPosition}</span>
+          <div class="flex gap-2">
+            <button
+              class="task-editor-move"
+              onClick={() => handleMove(-1)}
+              disabled={isSaving || positionIndex === 0}
+              aria-label={t.moveUp}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 19V5M5 12l7-7 7 7" />
+              </svg>
+            </button>
+            <button
+              class="task-editor-move"
+              onClick={() => handleMove(1)}
+              disabled={isSaving || positionIndex === visibleTaskIds.length - 1}
+              aria-label={t.moveDown}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 5v14M19 12l-7 7-7-7" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
 
       <div class="flex items-center gap-2">
         <button
